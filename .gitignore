@@ -1,0 +1,4 @@
+.idea
+venv
+res_*
+/articles_w_m_t.json
