@@ -28,12 +28,26 @@ def initialize_argument_parser() -> argparse.ArgumentParser:
         help='Если указан, то тексты при обработке будут объединяться в одно предложение.'
     )
     parser.add_argument(
+        '--use_cross_validation', '-c',
+        nargs='?',
+        const=True,
+        default=False,
+        help='Если указан, то тексты при обработке будут cross_validation.'
+    )
+    parser.add_argument(
+        '--use_std_sclr', '-s',
+        nargs='?',
+        const=True,
+        default=False,
+        help='Если указан, то тексты при обработке будут use_std_sclr.'
+    )
+    parser.add_argument(
         '--test_data_source', '-t',
         # nargs='1',
         help='Источник тестовых данных'
     )
     parser.add_argument(
-        '--learning_data_source', '-l',
+        '--train_data_source', '-l',
         # nargs='1',
         help='Источник обучающих данных'
     )
