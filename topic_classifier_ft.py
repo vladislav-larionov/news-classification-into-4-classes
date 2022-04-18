@@ -38,7 +38,8 @@ def create_model(x_train: list, use_whole_text: bool, train_data_source: str):
     model = FastText(vector_size=vector_size, window=window, sg=sg, epochs=epochs)
     model.build_vocab(x_train[train_data_source])
     if use_whole_text:
-        model.train(corpus_iterable=x_train[train_data_source], total_examples=len(x_train[train_data_source]), epochs=model.epochs)
+        model.train(corpus_iterable=x_train[train_data_source], total_examples=len(x_train[train_data_source]),
+                    epochs=model.epochs)
     else:
         sents = []
         for art in x_train[train_data_source.rstrip('_w')].values:
@@ -81,8 +82,8 @@ def main(use_whole_text: bool, test_data_source: str, train_data_source: str, us
         (make_pipeline(*vectorizors(model, use_std_sclr), SVC()), f'SVM kernel=rbf'),
         (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='linear')), f'SVM linear'),
         (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly')), f'SVM kernel=poly'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', coef0=coef0)),
-         f'SVM kernel=poly coef0={coef0}'),
+        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', coef0=0.75)),
+         f'SVM kernel=poly coef0=0.75'),
         (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=5)),
          f'SVM kernel=poly degree=5'),
         (make_pipeline(*vectorizors(model, use_std_sclr), SVC(degree=5, coef0=0.75, C=10)),
@@ -93,8 +94,6 @@ def main(use_whole_text: bool, test_data_source: str, train_data_source: str, us
          f'SVM kernel=rbf, gamma=1'),
         (make_pipeline(*vectorizors(model, use_std_sclr), SVC(gamma=1, C=10)),
          f'SVM kernel=rbf, gamma=1, C=10'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=4, coef0=0.75)),
-         f'SVM kernel=poly, degree=4, coef0=0.75'),
         (make_pipeline(*vectorizors(model, use_std_sclr),
                        SVC(kernel='poly', degree=4, coef0=0.7, gamma=1, C=0.1)),
          f'SVM kernel=poly, degree=4, coef0=0.7, gamma=1, C=0.1'),
@@ -102,12 +101,12 @@ def main(use_whole_text: bool, test_data_source: str, train_data_source: str, us
          f'SVM kernel=poly, degree=5, coef0=0.65'),
         (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=4, coef0=0.75)),
          f'SVM kernel=poly degree=4, coef0=0.75'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=5, coef0=coef0)),
-         f'SVM kernel=poly degree=5 coef0={coef0}'),
+        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=5, coef0=0.75)),
+         f'SVM kernel=poly degree=5 coef0=0.75'),
         (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=6)),
          f'SVM kernel=poly degree=6'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=6, coef0=coef0)),
-         f'SVM kernel=poly degree=6 coef0={coef0}'),
+        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=6, coef0=0.75)),
+         f'SVM kernel=poly degree=6 coef0=0.75'),
         (make_pipeline(*vectorizors(model, use_std_sclr), DecisionTreeClassifier()), 'DecisionTree'),
         (make_pipeline(*vectorizors(model, use_std_sclr), LogisticRegression(max_iter=1000)),
          'LogisticRegression'),
@@ -117,7 +116,8 @@ def main(use_whole_text: bool, test_data_source: str, train_data_source: str, us
         (make_pipeline(*vectorizors(model, use_std_sclr), KNeighborsClassifier(weights='distance')),
          'KNeighbors weights=distance'),
         (make_pipeline(*vectorizors(model, use_std_sclr), NearestCentroid()), 'NearestCentroid'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), NearestCentroid(metric='cosine')), 'NearestCentroid metric=cosine'),
+        (make_pipeline(*vectorizors(model, use_std_sclr), NearestCentroid(metric='cosine')),
+         'NearestCentroid metric=cosine'),
         (make_pipeline(*vectorizors(model, use_std_sclr), AdaBoostClassifier(n_estimators=70)),
          f'AdaBoost n_estimators={70}'),
         (make_pipeline(*vectorizors(model, use_std_sclr), MinMaxScaler(), MultinomialNB()), f'MultinomialNB'),
@@ -178,7 +178,7 @@ def test(use_whole_text: bool, test_data_source: str, train_data_source: str):
                                                         stratify=y_prep)
     model = create_model(x_train, use_whole_text, train_data_source)
     clsassifier = make_pipeline(MeanEmbeddingVectorizer(model),
-                                SVC(probability=True, kernel='rbf', degree = 5, coef0 = 0.75, C = 10))
+                                SVC(probability=True, kernel='rbf', degree=5, coef0=0.75, C=10))
     clsassifier.fit(x_train[train_data_source], y_train)
     y_res = clsassifier.predict(x_test[test_data_source])
     print(f'SVC;'
@@ -245,7 +245,9 @@ def grid_search(use_whole_text: bool, test_data_source: str, train_data_source: 
     }
     clsassifier = Pipeline([
         ('vectorizer', MeanEmbeddingVectorizer(model)),
-        ('classify', AdaBoostClassifier(base_estimator=RandomForestClassifier(n_estimators=500, criterion='entropy', bootstrap=False, max_features='log2')))
+        ('classify', AdaBoostClassifier(
+            base_estimator=RandomForestClassifier(n_estimators=500, criterion='entropy', bootstrap=False,
+                                                  max_features='log2')))
     ])
     gd_sr = GridSearchCV(estimator=clsassifier,
                          param_grid=grid_param,
@@ -264,6 +266,7 @@ def grid_search(use_whole_text: bool, test_data_source: str, train_data_source: 
 
 if __name__ == '__main__':
     args = initialize_argument_parser().parse_args()
-    main(args.use_whole_text, args.test_data_source, args.train_data_source, args.use_cross_validation, args.use_std_sclr)
+    main(args.use_whole_text, args.test_data_source, args.train_data_source, args.use_cross_validation,
+         args.use_std_sclr)
     # grid_search(args.use_whole_text, args.test_data_source, args.train_data_source)
     # test(args.use_whole_text, args.test_data_source, args.train_data_source)

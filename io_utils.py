@@ -28,6 +28,13 @@ def initialize_argument_parser() -> argparse.ArgumentParser:
         help='Если указан, то тексты при обработке будут объединяться в одно предложение.'
     )
     parser.add_argument(
+        '--short',
+        nargs='?',
+        const=True,
+        default=False,
+        help='Если указан, то тестироваться будет на ограниченном списке классификаторов.'
+    )
+    parser.add_argument(
         '--use_cross_validation', '-c',
         nargs='?',
         const=True,
