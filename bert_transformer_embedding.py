@@ -1,10 +1,13 @@
-from transformers import AutoTokenizer, AutoModel
+from more_itertools import chunked
 from sklearn.base import TransformerMixin, BaseEstimator
 import torch
 import numpy as np
 import pandas as pd
+from transformers import AutoTokenizer, AutoModel, BertModel, BertTokenizer, BertTokenizerFast
+
 
 class BertTransformerSentenceEmbedding(TransformerMixin, BaseEstimator):
+    # https://stackoverflow.com/questions/67105996/how-to-use-bert-and-elmo-embedding-with-sklearn
     # https://habr.com/ru/post/562064/
     # 'cointegrated/LaBSE-en-ru'
     # https://huggingface.co/cointegrated/LaBSE-en-ru
@@ -16,8 +19,10 @@ class BertTransformerSentenceEmbedding(TransformerMixin, BaseEstimator):
         self.model_name = model_name
         self.layer = layer
         self.batch_size = batch_size
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        self.model = AutoModel.from_pretrained(self.model_name)
+        # self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        # self.model = AutoModel.from_pretrained(self.model_name)
+        self.tokenizer = BertTokenizerFast.from_pretrained(self.model_name)
+        self.model = BertModel.from_pretrained(self.model_name)
 
     def fit(self, X, y=None):
         return self

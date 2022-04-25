@@ -2,29 +2,28 @@ import collections
 
 import numpy as np
 from matplotlib import pyplot as plt
-from sklearn import metrics
+from mpl_toolkits.mplot3d import Axes3D
+from sklearn.base import TransformerMixin
 from sklearn.datasets import load_iris
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
-from sklearn.feature_extraction.text import TfidfVectorizer, TfidfTransformer, CountVectorizer
-from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.decomposition import PCA
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, ExtraTreesClassifier
+from sklearn.linear_model import LogisticRegression, RidgeCV
 from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.neighbors import KNeighborsClassifier, NearestCentroid
-from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.svm import SVC, LinearSVC
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, classification_report
-from sklearn.model_selection import train_test_split, cross_val_score, KFold, cross_validate, StratifiedKFold, \
-    GroupKFold, ShuffleSplit, StratifiedShuffleSplit, LeaveOneOut, LeavePOut, GridSearchCV
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from gensim.models import Word2Vec
 import pandas as pd
-import csv
-import seaborn as sns
 from sklearn.tree import DecisionTreeClassifier
 
+from classifier_lists import full_classifier_list
 from clsassifier_iterator import classify_all
 from io_utils import initialize_argument_parser
 from mean_embedding_vectorizer import MeanEmbeddingVectorizer
+from w2v_vectorizer import Word2VecModel, Doc2VecModel
 
 
 def print_statistics(trues, res, label=None):
@@ -62,13 +61,6 @@ def create_w2v_model(x_train: list, use_whole_text: bool, train_data_source: str
     return model
 
 
-def vectorizors(w2v_model, use_standard_scaler: bool = False):
-    vectrs = [MeanEmbeddingVectorizer(w2v_model)]
-    if use_standard_scaler:
-        vectrs.append(StandardScaler())
-    return vectrs
-
-
 def main(use_whole_text: bool, test_data_source: str, train_data_source: str, use_cross_validation: bool,
          use_std_sclr: bool):
     # http://nadbordrozd.github.io/blog/2016/05/20/text-classification-with-word2vec/
@@ -80,7 +72,7 @@ def main(use_whole_text: bool, test_data_source: str, train_data_source: str, us
     y_prep = np.asarray([label_map[l] for l in y])
     print(label_map)
     test_size = 0.2
-    coef0 = 0.7
+    n_components = 30
     x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
                                                         stratify=y_prep)
     model = create_w2v_model(x_train, use_whole_text, train_data_source)
@@ -88,88 +80,14 @@ def main(use_whole_text: bool, test_data_source: str, train_data_source: str, us
     x_test = x_test[test_data_source]
     print(f'model_test_str = {test_data_source}')
     print(f'test_size = {test_size}')
-    print(f'coef0 = {coef0}')
     print(f'use_std_sclr = {use_std_sclr}')
-    classifiers = []
-    classifiers.extend([
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC()), f'SVM kernel=rbf'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='linear')), f'SVM linear'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly')), f'SVM kernel=poly'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', coef0=coef0)),
-         f'SVM kernel=poly coef0={coef0}'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=5)),
-         f'SVM kernel=poly degree=5'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(degree=5, coef0=0.75, C=10)),
-         f'SVM kernel=rbf, degree=5, coef0=0.75, C=10'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(degree=5, coef0=0.2)),
-         f'SVM kernel=rbf, degree=5, coef0=0.2'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(gamma=1)),
-         f'SVM kernel=rbf, gamma=1'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(gamma=1, C=10)),
-         f'SVM kernel=rbf, gamma=1, C=10'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=4, coef0=0.75)),
-         f'SVM kernel=poly, degree=4, coef0=0.75'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       SVC(kernel='poly', degree=4, coef0=0.7, gamma=1, C=0.1)),
-         f'SVM kernel=poly, degree=4, coef0=0.7, gamma=1, C=0.1'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=5, coef0=0.65)),
-         f'SVM kernel=poly, degree=5, coef0=0.65'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=4, coef0=0.75)),
-         f'SVM kernel=poly degree=4, coef0=0.75'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=5, coef0=coef0)),
-         f'SVM kernel=poly degree=5 coef0={coef0}'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=6)),
-         f'SVM kernel=poly degree=6'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=6, coef0=coef0)),
-         f'SVM kernel=poly degree=6 coef0={coef0}'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), DecisionTreeClassifier()), 'DecisionTree'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), LogisticRegression(max_iter=1000)),
-         'LogisticRegression'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), LogisticRegression(penalty="none", max_iter=1000)),
-         'LogisticRegression penalty=none'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), KNeighborsClassifier()), 'KNeighbors'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), KNeighborsClassifier(weights='distance')),
-         'KNeighbors weights=distance'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), NearestCentroid()), 'NearestCentroid'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), NearestCentroid(metric='cosine')), 'NearestCentroid metric=cosine'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), AdaBoostClassifier(n_estimators=70)),
-         f'AdaBoost n_estimators={70}'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), MinMaxScaler(), MultinomialNB()), f'MultinomialNB'),
-        # (make_pipeline(*create_vectorizors(model, use_std_sclr), GaussianNB()), f'GaussianNB'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier()), f'RandomForest'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(bootstrap=False)), f'RandomForest bootstrap=False'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(max_features=None)), f'RandomForest max_features=None'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(criterion='entropy')), f'RandomForest entropy'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(criterion='entropy', max_features=None)),
-         f'RandomForest entropy max_features=None'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(criterion='entropy', max_features='log2')),
-         f'RandomForest entropy max_features=log2'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(criterion='entropy', bootstrap=False)),
-         f'RandomForest entropy bootstrap=False'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(criterion='entropy', max_features=None, bootstrap=False)),
-         f'RandomForest entropy max_features=None bootstrap=False'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(criterion='entropy', max_features='log2', bootstrap=False)),
-         f'RandomForest entropy max_features=log2 bootstrap=False'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(n_estimators=150, criterion='entropy', bootstrap=False)),
-         f'RandomForest n_estimators=150 entropy bootstrap=False'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(n_estimators=200, criterion='entropy', bootstrap=False)),
-         f'RandomForest n_estimators=200 entropy bootstrap=False'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(n_estimators=500, criterion='entropy', bootstrap=False,
-                                              max_features='log2')),
-         f'RandomForest n_estimators=500, criterion=entropy, bootstrap=False, max_features=log2')
-    ])
+    print(f'n_components = {n_components}')
+    print()
+    vectorizors = [MeanEmbeddingVectorizer(model)]
+    if use_std_sclr:
+        vectorizors.append(StandardScaler())
+    # vectorizors.append(PCA(n_components=n_components))
+    classifiers = full_classifier_list(vectorizors)
     classify_all(x_train,
                  x_test,
                  y_train,
@@ -178,7 +96,7 @@ def main(use_whole_text: bool, test_data_source: str, train_data_source: str, us
                  use_cross_validation=use_cross_validation,
                  target_names=list(label_map.keys()),
                  paint_err_matr=False,
-                 print_table=True,
+                 print_table=False,
                  classifiers=classifiers)
 
 
@@ -191,10 +109,11 @@ def test(use_whole_text: bool, test_data_source: str, train_data_source: str):
     x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
                                                         stratify=y_prep)
     model = create_w2v_model(x_train, use_whole_text, train_data_source)
-    clsassifier = make_pipeline(MeanEmbeddingVectorizer(model), LinearSVC())
+    # clsassifier = make_pipeline(MeanEmbeddingVectorizer(model), PCA(n_components=50), LinearSVC())
+    clsassifier = make_pipeline(MeanEmbeddingVectorizer(model), ExtraTreesClassifier(class_weight='balanced', n_estimators=500))
     clsassifier.fit(x_train[train_data_source], y_train)
     y_res = clsassifier.predict(x_test[test_data_source])
-    print(f'{"LinearSVC;":{" "}{"<"}{57}} '
+    print(f'{"ExtraTreesClassifier;":{" "}{"<"}{57}} '
           f'P_micro: {precision_score(y_test, y_res, average="micro"):1.4f};'
           f' P_macro: {precision_score(y_test, y_res, average="macro"):1.4f};'
           f' R_micro: {recall_score(y_test, y_res, average="micro"):1.4f};'
@@ -212,22 +131,18 @@ def test2(use_whole_text: bool, test_data_source: str, train_data_source: str):
     test_size = 0.2
     x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
                                                         stratify=y_prep)
-    model = create_w2v_model(x_train, use_whole_text, train_data_source)
-    k_scores = []
-    k_range = []
-    for k in list(range(0, 40, 2)):
-        k = 0.1 * k / 2.0
-        k_range.append(k)
-        classifier = make_pipeline(MeanEmbeddingVectorizer(model), SVC(kernel='poly', degree=5, coef0=k))
-        scores = cross_val_score(classifier, x_train[train_data_source], y_train, cv=10, scoring='accuracy')
-        k_scores.append(scores.mean())
-        m = max(k_scores)
-        if scores.mean() == max(k_scores):
-            print(m, k)
-    plt.plot(k_range, k_scores)
-    plt.xlabel('Value of coef0 for SVC')
-    plt.ylabel('Cross-Validated Accuracy')
-    plt.show()
+    # model = create_w2v_model(x_train, use_whole_text, train_data_source)
+    classifier = make_pipeline(Doc2VecModel(), SVC(kernel='poly', degree=5, coef0=0.75))
+    classifier.fit(x_train[train_data_source], y_train)
+    y_res = classifier.predict(x_test[test_data_source])
+    print(f'{"SVC(kernel=poly, degree=5, coef0=0.75);":{" "}{"<"}{57}} '
+          f'P_micro: {precision_score(y_test, y_res, average="micro"):1.4f};'
+          f' P_macro: {precision_score(y_test, y_res, average="macro"):1.4f};'
+          f' R_micro: {recall_score(y_test, y_res, average="micro"):1.4f};'
+          f' R_macro: {recall_score(y_test, y_res, average="macro"):1.4f};'
+          f' F1_micro: {f1_score(y_test, y_res, average="micro"):1.4f};'
+          f' F1_macro: {f1_score(y_test, y_res, average="macro"):1.4f};'
+          )
 
 
 def grid_search(use_whole_text: bool, test_data_source: str, train_data_source: str):
@@ -241,22 +156,21 @@ def grid_search(use_whole_text: bool, test_data_source: str, train_data_source: 
     model = create_w2v_model(x_train, use_whole_text, train_data_source)
     grid_param = {
         # 'classify__metric': ['cityblock', 'cosine', 'euclidean', 'l1', 'l2', 'manhattan'],
-        'classify__penalty': ['l1', 'l2'],
-        'classify__C': [5, 1, 10, 15],
-        'classify__loss': ['hinge', 'squared_hinge'],
-        # 'classify__shrinking': [True, False]
+        # 'v__vector_size': [70],
+        'c__C': [1e3, 5e3, 1e4, 5e4, 1e5],
+        'c__gamma': [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.1],
+        'c__kernel': ['rbf', 'poly', 'linear'],
     }
     clsassifier = Pipeline([
-        ('vectorizer', MeanEmbeddingVectorizer(model)),
-        ('classify', LinearSVC())
+        ('v', MeanEmbeddingVectorizer(model)),
+        ('c', SVC())
     ])
-
     gd_sr = GridSearchCV(estimator=clsassifier,
                          param_grid=grid_param,
                          # scoring='accuracy',
-                         scoring='f1_micro',
-                         # scoring='f1_macro',
-                         cv=10,
+                         # scoring='f1_micro',
+                         scoring='f1_macro',
+                         refit=True, verbose=1, cv=5,
                          n_jobs=-1)
     gd_sr.fit(x_train[train_data_source], y_train)
     best_parameters = gd_sr.best_params_
@@ -265,35 +179,92 @@ def grid_search(use_whole_text: bool, test_data_source: str, train_data_source: 
     print(best_result)
     data = pd.DataFrame(gd_sr.cv_results_)
     print(data[['mean_test_score', 'std_test_score', 'params']])
-    print()
-    # plt.plot(data['mean_test_score'], ['mean_test_score'])
-    # plt.xlabel('Value of coef0 for SVC')
-    # plt.ylabel('Cross-Validated Accuracy')
-    # plt.show()
 
 
-def test_ir():
-    iris = load_iris()
-    X = iris.data
-    y = iris.target
-    k_range = list(range(1, 31))
-    k_scores = []
-    for k in k_range:
-        knn = KNeighborsClassifier(n_neighbors=k)
-        scores = cross_val_score(knn, X, y, cv=10, scoring='accuracy')
-        k_scores.append(scores.mean())
-        # print(k_scores)
-    plt.plot(k_range, k_scores)
-    plt.xlabel('Value of K for KNN')
-    plt.ylabel('Cross-Validated Accuracy')
+
+# def grid_search(use_whole_text: bool, test_data_source: str, train_data_source: str):
+#     data = pd.read_json('articles_w_m_t.json')
+#     y = np.asarray(data["user_categories"])
+#     label_map = {cat: index for index, cat in enumerate(np.unique(y))}
+#     y_prep = np.asarray([label_map[l] for l in y])
+#     test_size = 0.2
+#     x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
+#                                                         stratify=y_prep)
+#     # model = create_w2v_model(x_train, use_whole_text, train_data_source)
+#     grid_param = {
+#         # 'classify__metric': ['cityblock', 'cosine', 'euclidean', 'l1', 'l2', 'manhattan'],
+#         # 'v__vector_size': [70],
+#         'v__dbow_words': [1, 0],
+#         'v__dm_mean': [1, 0],
+#
+#
+#
+#     }
+#     clsassifier = Pipeline([
+#         # ('vectorizer', MeanEmbeddingVectorizer(model)),
+#         ('v', Doc2VecModel()),
+#         # ('v', Word2VecModel()),
+#         ('classify', SVC(kernel='poly', degree=5, coef0=0.75))
+#     ])
+#
+#     gd_sr = GridSearchCV(estimator=clsassifier,
+#                          param_grid=grid_param,
+#                          # scoring='accuracy',
+#                          # scoring='f1_micro',
+#                          scoring='f1_macro',
+#                          cv=7,
+#                          n_jobs=-1)
+#     gd_sr.fit(x_train[train_data_source], y_train)
+#     best_parameters = gd_sr.best_params_
+#     print(best_parameters)
+#     best_result = gd_sr.best_score_
+#     print(best_result)
+#     data = pd.DataFrame(gd_sr.cv_results_)
+#     print(data[['mean_test_score', 'std_test_score', 'params']])
+
+
+def draw(use_whole_text: bool, test_data_source: str, train_data_source: str):
+    data = pd.read_json('articles_w_m_t.json')
+    y = np.asarray(data["user_categories"])
+    label_map = {cat: index for index, cat in enumerate(np.unique(y))}
+    y_prep = np.asarray([label_map[l] for l in y])
+    print(label_map)
+    test_size = 0.2
+    x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
+                                                        stratify=y_prep)
+    model = create_w2v_model(x_train, use_whole_text, train_data_source)
+    pca = PCA(n_components=3)
+    fitter = MeanEmbeddingVectorizer(model)
+    scaler = StandardScaler()
+    x_train = [' '.join(t) for t in x_train[train_data_source]]
+    x_test = [' '.join(t) for t in x_test[test_data_source]]
+    x_train = fitter.transform(x_train)
+    x_test = fitter.transform(x_test)
+    x_train = pca.fit_transform(x_train)
+    x_test = pca.transform(x_test)
+    x_train = scaler.fit_transform(x_train)
+    x_test = scaler.transform(x_test)
+    fig = plt.figure(1, figsize=(8, 6))
+    ax = Axes3D(fig, elev=-150, azim=110)
+    ax.scatter(x_train[:, 0],
+               x_train[:, 1],
+               x_train[:, 2],
+               c=y_train,
+               cmap='Paired',
+               # cmap=plt.cm.Set1,
+               edgecolor="k",
+               s=40,
+               )
+    # plt.colorbar()
+    # plt.xlabel('First principal component')
+    # plt.ylabel('Second Principal Component')
     plt.show()
-
 
 
 if __name__ == '__main__':
     args = initialize_argument_parser().parse_args()
     # main(args.use_whole_text, args.test_data_source, args.train_data_source, args.use_cross_validation, args.use_std_sclr)
-    # test(args.use_whole_text, args.test_data_source, args.train_data_source)
-    grid_search(args.use_whole_text, args.test_data_source, args.train_data_source)
-    # test_ir()
+    # grid_search(args.use_whole_text, args.test_data_source, args.train_data_source)
+    # draw(args.use_whole_text, args.test_data_source, args.train_data_source)
+    test(args.use_whole_text, args.test_data_source, args.train_data_source)
     # test2(args.use_whole_text, args.test_data_source, args.train_data_source)

@@ -1,6 +1,7 @@
 import collections
 
 import numpy as np
+from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer, TfidfTransformer, CountVectorizer
 from sklearn.linear_model import LogisticRegression, SGDClassifier
@@ -19,6 +20,7 @@ import csv
 import seaborn as sns
 from sklearn.tree import DecisionTreeClassifier
 
+from classifier_lists import full_classifier_list
 from clsassifier_iterator import classify_all
 from io_utils import initialize_argument_parser
 from mean_embedding_vectorizer import MeanEmbeddingVectorizer
@@ -49,13 +51,6 @@ def create_model(x_train: list, use_whole_text: bool, train_data_source: str):
     return model
 
 
-def vectorizors(w2v_model, use_standard_scaler: bool = False):
-    vectrs = [MeanEmbeddingVectorizer(w2v_model)]
-    if use_standard_scaler:
-        vectrs.append(StandardScaler())
-    return vectrs
-
-
 def main(use_whole_text: bool, test_data_source: str, train_data_source: str, use_cross_validation: bool,
          use_std_sclr: bool):
     # http://nadbordrozd.github.io/blog/2016/05/20/text-classification-with-word2vec/
@@ -67,7 +62,6 @@ def main(use_whole_text: bool, test_data_source: str, train_data_source: str, us
     y_prep = np.asarray([label_map[l] for l in y])
     print(label_map)
     test_size = 0.2
-    coef0 = 0.7
     x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
                                                         stratify=y_prep)
     model = create_model(x_train, use_whole_text, train_data_source)
@@ -75,87 +69,12 @@ def main(use_whole_text: bool, test_data_source: str, train_data_source: str, us
     x_test = x_test[test_data_source]
     print(f'model_test_str = {test_data_source}')
     print(f'test_size = {test_size}')
-    print(f'coef0 = {coef0}')
     print(f'use_std_sclr = {use_std_sclr}')
-    classifiers = []
-    classifiers.extend([
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC()), f'SVM kernel=rbf'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='linear')), f'SVM linear'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly')), f'SVM kernel=poly'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', coef0=0.75)),
-         f'SVM kernel=poly coef0=0.75'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=5)),
-         f'SVM kernel=poly degree=5'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(degree=5, coef0=0.75, C=10)),
-         f'SVM kernel=rbf, degree=5, coef0=0.75, C=10'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(degree=5, coef0=0.2)),
-         f'SVM kernel=rbf, degree=5, coef0=0.2'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(gamma=1)),
-         f'SVM kernel=rbf, gamma=1'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(gamma=1, C=10)),
-         f'SVM kernel=rbf, gamma=1, C=10'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       SVC(kernel='poly', degree=4, coef0=0.7, gamma=1, C=0.1)),
-         f'SVM kernel=poly, degree=4, coef0=0.7, gamma=1, C=0.1'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=5, coef0=0.65)),
-         f'SVM kernel=poly, degree=5, coef0=0.65'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=4, coef0=0.75)),
-         f'SVM kernel=poly degree=4, coef0=0.75'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=5, coef0=0.75)),
-         f'SVM kernel=poly degree=5 coef0=0.75'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=6)),
-         f'SVM kernel=poly degree=6'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), SVC(kernel='poly', degree=6, coef0=0.75)),
-         f'SVM kernel=poly degree=6 coef0=0.75'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), DecisionTreeClassifier()), 'DecisionTree'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), LogisticRegression(max_iter=1000)),
-         'LogisticRegression'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), LogisticRegression(penalty="none", max_iter=1000)),
-         'LogisticRegression penalty=none'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), KNeighborsClassifier()), 'KNeighbors'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), KNeighborsClassifier(weights='distance')),
-         'KNeighbors weights=distance'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), NearestCentroid()), 'NearestCentroid'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), NearestCentroid(metric='cosine')),
-         'NearestCentroid metric=cosine'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), AdaBoostClassifier(n_estimators=70)),
-         f'AdaBoost n_estimators={70}'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), MinMaxScaler(), MultinomialNB()), f'MultinomialNB'),
-        (make_pipeline(*vectorizors(model, use_std_sclr), GaussianNB()), f'GaussianNB'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier()), f'RandomForest'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(bootstrap=False)), f'RandomForest bootstrap=False'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(max_features=None)), f'RandomForest max_features=None'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(criterion='entropy')), f'RandomForest entropy'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(criterion='entropy', max_features=None)),
-         f'RandomForest entropy max_features=None'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(criterion='entropy', max_features='log2')),
-         f'RandomForest entropy max_features=log2'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(criterion='entropy', bootstrap=False)),
-         f'RandomForest entropy bootstrap=False'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(criterion='entropy', max_features=None, bootstrap=False)),
-         f'RandomForest entropy max_features=None bootstrap=False'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(criterion='entropy', max_features='log2', bootstrap=False)),
-         f'RandomForest entropy max_features=log2 bootstrap=False'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(n_estimators=150, criterion='entropy', bootstrap=False)),
-         f'RandomForest n_estimators=150 entropy bootstrap=False'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(n_estimators=200, criterion='entropy', bootstrap=False)),
-         f'RandomForest n_estimators=200 entropy bootstrap=False'),
-        (make_pipeline(*vectorizors(model, use_std_sclr),
-                       RandomForestClassifier(n_estimators=500, criterion='entropy', bootstrap=False,
-                                              max_features='log2')),
-         f'RandomForest n_estimators=500, criterion=entropy, bootstrap=False, max_features=log2')
-    ])
+    vectorizors = [MeanEmbeddingVectorizer(model)]
+    if use_std_sclr:
+        vectorizors.append(StandardScaler())
+    # vectorizors.append(PCA(n_components=50))
+    classifiers = full_classifier_list(vectorizors)
     classify_all(x_train,
                  x_test,
                  y_train,
@@ -164,7 +83,7 @@ def main(use_whole_text: bool, test_data_source: str, train_data_source: str, us
                  use_cross_validation=use_cross_validation,
                  target_names=list(label_map.keys()),
                  paint_err_matr=False,
-                 print_table=True,
+                 print_table=False,
                  classifiers=classifiers)
 
 
@@ -178,10 +97,11 @@ def test(use_whole_text: bool, test_data_source: str, train_data_source: str):
                                                         stratify=y_prep)
     model = create_model(x_train, use_whole_text, train_data_source)
     clsassifier = make_pipeline(MeanEmbeddingVectorizer(model),
-                                SVC(probability=True, kernel='rbf', degree=5, coef0=0.75, C=10))
+                                PCA(n_components=45),
+                                SVC(kernel='poly', degree=4, coef0=0.75))
     clsassifier.fit(x_train[train_data_source], y_train)
     y_res = clsassifier.predict(x_test[test_data_source])
-    print(f'SVC;'
+    print(f'SVC kernel=poly degree=4 coef0=0.75;'
           f' P_micro: {precision_score(y_test, y_res, average="micro"):1.4f};'
           f' P_macro: {precision_score(y_test, y_res, average="macro"):1.4f};'
           f' R_micro: {recall_score(y_test, y_res, average="micro"):1.4f};'

@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 from nltk.corpus import stopwords
 from sklearn import metrics
 from sklearn.datasets import load_iris
+from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer, TfidfTransformer, CountVectorizer
 from sklearn.linear_model import LogisticRegression, SGDClassifier
@@ -20,6 +21,7 @@ from sklearn.model_selection import train_test_split, cross_val_score, KFold, cr
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
 
+from classifier_lists import full_classifier_list
 from clsassifier_iterator import classify_all
 from io_utils import initialize_argument_parser
 
@@ -41,83 +43,89 @@ def main(test_data_source: str, train_data_source: str, use_cross_validation: bo
     y_prep = np.asarray([label_map[l] for l in y])
     print(label_map)
     test_size = 0.2
-    coef0 = 0.7
     tfidf_params = dict(min_df=10, max_df=0.8, ngram_range=(1, 2))
-    tfidfconverter = TfidfVectorizer(**tfidf_params)
+    vectorizors = [TfidfVectorizer(**tfidf_params)]
+    if use_std_sclr:
+        vectorizors.append(StandardScaler(with_mean=False))
+    vectorizors.append(TruncatedSVD(n_components=500))
+    classifiers = full_classifier_list(vectorizors)
+    # tfidfconverter = TfidfVectorizer(**tfidf_params)
     x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
                                                         stratify=y_prep)
-    x_train = tfidfconverter.fit_transform([' '.join(t) for t in x_train[train_data_source]]).toarray()
-    x_test = tfidfconverter.transform([' '.join(t) for t in x_test[test_data_source]]).toarray()
+    # x_train = tfidfconverter.fit_transform([' '.join(t) for t in x_train[train_data_source]]).toarray()
+    # x_test = tfidfconverter.transform([' '.join(t) for t in x_test[test_data_source]]).toarray()
+    x_train = [' '.join(t) for t in x_train[train_data_source]]
+    x_test = [' '.join(t) for t in x_test[test_data_source]]
     print(f'model_test_str = {test_data_source}')
     print(f'test_size = {test_size}')
     print(f'tfidf_params = {tfidf_params}')
     print(f'use_std_sclr = {use_std_sclr}')
-    classifiers = []
-    classifiers.extend([
-        (make_pipeline(*vectorizors(use_std_sclr), SVC()), f'SVM kernel=rbf'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='linear')), f'SVM linear'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly')), f'SVM kernel=poly'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', coef0=0.75)), f'SVM kernel=poly coef0=0.75'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=5)), f'SVM kernel=poly degree=5'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(degree=5, coef0=0.75, C=10)),
-         f'SVM kernel=rbf, degree=5, coef0=0.75, C=10'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(degree=5, coef0=0.2)), f'SVM kernel=rbf, degree=5, coef0=0.2'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(gamma=1)), f'SVM kernel=rbf, gamma=1'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(gamma=1, C=10)), f'SVM kernel=rbf, gamma=1, C=10'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=4, coef0=0.75)),
-         f'SVM kernel=poly, degree=4, coef0=0.75'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=4, coef0=0.7, gamma=1, C=0.1)),
-         f'SVM kernel=poly, degree=4, coef0=0.7, gamma=1, C=0.1'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=5, coef0=0.65)),
-         f'SVM kernel=poly, degree=5, coef0=0.65'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=5, coef0=0.75)),
-         f'SVM kernel=poly degree=5 coef0=0.75'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=6)), f'SVM kernel=poly degree=6'),
-        (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=6, coef0=0.75)),
-         f'SVM kernel=poly degree=6 coef0=0.75'),
-        (make_pipeline(*vectorizors(use_std_sclr), DecisionTreeClassifier()), 'DecisionTree'),
-        (make_pipeline(*vectorizors(use_std_sclr), LogisticRegression(max_iter=1000)), 'LogisticRegression'),
-        (make_pipeline(*vectorizors(use_std_sclr), LogisticRegression(penalty="none", max_iter=1000)),
-         'LogisticRegression penalty=none'),
-        (make_pipeline(*vectorizors(use_std_sclr), KNeighborsClassifier()), 'KNeighbors'),
-        (make_pipeline(*vectorizors(use_std_sclr), KNeighborsClassifier(weights='distance')),
-         'KNeighbors weights=distance'),
-        (make_pipeline(*vectorizors(use_std_sclr), NearestCentroid()), 'NearestCentroid'),
-        (make_pipeline(*vectorizors(use_std_sclr), NearestCentroid(metric='cosine')), 'NearestCentroid metric=cosine'),
-        (make_pipeline(*vectorizors(use_std_sclr), AdaBoostClassifier(n_estimators=70)), f'AdaBoost n_estimators={70}'),
-        (make_pipeline(*vectorizors(use_std_sclr), MinMaxScaler(), MultinomialNB()), f'MultinomialNB MinMaxScaler'),
-        (make_pipeline(*vectorizors(use_std_sclr), MultinomialNB()), f'MultinomialNB'),
-        (make_pipeline(*vectorizors(use_std_sclr), GaussianNB()), f'GaussianNB'),
-        (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier()), f'RandomForest'),
-        (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(bootstrap=False)),
-         f'RandomForest bootstrap=False'),
-        (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(max_features=None)),
-         f'RandomForest max_features=None'),
-        (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(criterion='entropy')),
-         f'RandomForest entropy'),
-        (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(criterion='entropy', max_features=None)),
-         f'RandomForest entropy max_features=None'),
-        (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(criterion='entropy', max_features='log2')),
-         f'RandomForest entropy max_features=log2'),
-        (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(criterion='entropy', bootstrap=False)),
-         f'RandomForest entropy bootstrap=False'),
-        (make_pipeline(*vectorizors(use_std_sclr),
-                       RandomForestClassifier(criterion='entropy', max_features=None, bootstrap=False)),
-         f'RandomForest entropy max_features=None bootstrap=False'),
-        (make_pipeline(*vectorizors(use_std_sclr),
-                       RandomForestClassifier(criterion='entropy', max_features='log2', bootstrap=False)),
-         f'RandomForest entropy max_features=log2 bootstrap=False'),
-        (make_pipeline(*vectorizors(use_std_sclr),
-                       RandomForestClassifier(n_estimators=150, criterion='entropy', bootstrap=False)),
-         f'RandomForest n_estimators=150 entropy bootstrap=False'),
-        (make_pipeline(*vectorizors(use_std_sclr),
-                       RandomForestClassifier(n_estimators=200, criterion='entropy', bootstrap=False)),
-         f'RandomForest n_estimators=200 entropy bootstrap=False'),
-        (make_pipeline(*vectorizors(use_std_sclr),
-                       RandomForestClassifier(n_estimators=500, criterion='entropy', bootstrap=False,
-                                              max_features='log2')),
-         f'RandomForest n_estimators=500, criterion=entropy, bootstrap=False, max_features=log2')
-    ])
+    # classifiers = []
+    # classifiers.extend([
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC()), f'SVM kernel=rbf'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='linear')), f'SVM linear'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly')), f'SVM kernel=poly'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', coef0=0.75)), f'SVM kernel=poly coef0=0.75'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=5)), f'SVM kernel=poly degree=5'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(degree=5, coef0=0.75, C=10)),
+    #      f'SVM kernel=rbf, degree=5, coef0=0.75, C=10'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(degree=5, coef0=0.2)), f'SVM kernel=rbf, degree=5, coef0=0.2'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(gamma=1)), f'SVM kernel=rbf, gamma=1'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(gamma=1, C=10)), f'SVM kernel=rbf, gamma=1, C=10'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=4, coef0=0.75)),
+    #      f'SVM kernel=poly, degree=4, coef0=0.75'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=4, coef0=0.7, gamma=1, C=0.1)),
+    #      f'SVM kernel=poly, degree=4, coef0=0.7, gamma=1, C=0.1'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=5, coef0=0.65)),
+    #      f'SVM kernel=poly, degree=5, coef0=0.65'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=5, coef0=0.75)),
+    #      f'SVM kernel=poly degree=5 coef0=0.75'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=6)), f'SVM kernel=poly degree=6'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=6, coef0=0.75)),
+    #      f'SVM kernel=poly degree=6 coef0=0.75'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), DecisionTreeClassifier()), 'DecisionTree'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), LogisticRegression(max_iter=1000)), 'LogisticRegression'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), LogisticRegression(penalty="none", max_iter=1000)),
+    #      'LogisticRegression penalty=none'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), KNeighborsClassifier()), 'KNeighbors'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), KNeighborsClassifier(weights='distance')),
+    #      'KNeighbors weights=distance'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), NearestCentroid()), 'NearestCentroid'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), NearestCentroid(metric='cosine')), 'NearestCentroid metric=cosine'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), AdaBoostClassifier(n_estimators=70)), f'AdaBoost n_estimators={70}'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), MinMaxScaler(), MultinomialNB()), f'MultinomialNB MinMaxScaler'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), MultinomialNB()), f'MultinomialNB'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), GaussianNB()), f'GaussianNB'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier()), f'RandomForest'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(bootstrap=False)),
+    #      f'RandomForest bootstrap=False'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(max_features=None)),
+    #      f'RandomForest max_features=None'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(criterion='entropy')),
+    #      f'RandomForest entropy'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(criterion='entropy', max_features=None)),
+    #      f'RandomForest entropy max_features=None'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(criterion='entropy', max_features='log2')),
+    #      f'RandomForest entropy max_features=log2'),
+    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(criterion='entropy', bootstrap=False)),
+    #      f'RandomForest entropy bootstrap=False'),
+    #     (make_pipeline(*vectorizors(use_std_sclr),
+    #                    RandomForestClassifier(criterion='entropy', max_features=None, bootstrap=False)),
+    #      f'RandomForest entropy max_features=None bootstrap=False'),
+    #     (make_pipeline(*vectorizors(use_std_sclr),
+    #                    RandomForestClassifier(criterion='entropy', max_features='log2', bootstrap=False)),
+    #      f'RandomForest entropy max_features=log2 bootstrap=False'),
+    #     (make_pipeline(*vectorizors(use_std_sclr),
+    #                    RandomForestClassifier(n_estimators=150, criterion='entropy', bootstrap=False)),
+    #      f'RandomForest n_estimators=150 entropy bootstrap=False'),
+    #     (make_pipeline(*vectorizors(use_std_sclr),
+    #                    RandomForestClassifier(n_estimators=200, criterion='entropy', bootstrap=False)),
+    #      f'RandomForest n_estimators=200 entropy bootstrap=False'),
+    #     (make_pipeline(*vectorizors(use_std_sclr),
+    #                    RandomForestClassifier(n_estimators=500, criterion='entropy', bootstrap=False,
+    #                                           max_features='log2')),
+    #      f'RandomForest n_estimators=500, criterion=entropy, bootstrap=False, max_features=log2')
+    # ])
     classify_all(x_train,
                  x_test,
                  y_train,
@@ -126,7 +134,7 @@ def main(test_data_source: str, train_data_source: str, use_cross_validation: bo
                  use_cross_validation=use_cross_validation,
                  target_names=list(label_map.keys()),
                  paint_err_matr=False,
-                 print_table=True,
+                 print_table=False,
                  classifiers=classifiers)
 
 
@@ -192,6 +200,6 @@ def grid_search(use_whole_text: bool, test_data_source: str, train_data_source: 
 
 if __name__ == '__main__':
     args = initialize_argument_parser().parse_args()
-    # main(args.test_data_source, args.train_data_source, args.use_cross_validation, args.use_std_sclr)
-    test(args.test_data_source, args.train_data_source)
+    main(args.test_data_source, args.train_data_source, args.use_cross_validation, args.use_std_sclr)
+    # test(args.test_data_source, args.train_data_source)
     # grid_search(args.use_whole_text, args.test_data_source, args.train_data_source)

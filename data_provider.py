@@ -1,8 +1,14 @@
+from os import mkdir, rmdir
+
 import gc
+import numpy as np
+import pandas as pd
 import re
+import csv
 
 from nltk.corpus import stopwords
 from pymongo import MongoClient
+from sklearn.model_selection import train_test_split
 from stanza import Pipeline
 
 from io_utils import write_articles, read_texts
@@ -155,12 +161,39 @@ def merge_title_and_text(articles):
                                                           art['mention_lemmed_sentences_no_stopwords_w']
 
 
+def split_and_save(articles):
+    for source in ['lemmed_title_text_w', 'mention_lemmed_title_text_no_stopwords_w', 'lemmed_title_text_no_stopwords_w']:
+        with open(f'data/{source}.tsv', 'w', encoding='utf-8') as file:
+            writer = csv.writer(file, delimiter='\t')
+            writer.writerow(['phrase', 'label'])
+            for art in articles:
+                writer.writerow([' '.join(art[source]), art['user_categories']])
+        data = pd.read_csv(f'data/{source}.tsv', sep='\t')
+        y = np.asarray(data['label'])
+        label_map = {cat: index for index, cat in enumerate(np.unique(y))}
+        # print(label_map)
+        y_prep = np.asarray([label_map[l] for l in y])
+        x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=0.2, random_state=42,
+                                                            stratify=y_prep)
+        mkdir(f'data/{source}')
+        with open(f'data/{source}/train.tsv', 'w', encoding='utf-8') as file:
+            train = pd.DataFrame(data={"phrase": x_train['phrase'], "label": x_train['label']})
+            train.to_csv(file, index=False, sep='\t')
+        with open(f'data/{source}/test.tsv', 'w', encoding='utf-8') as file:
+            test = pd.DataFrame(data={"phrase": x_test['phrase'], "label": x_test['label']})
+            test.to_csv(file, index=False, sep='\t')
+    print()
+
 if __name__ == "__main__":
     # articles = get_articles()
     # tokenize(articles)
     # articles_to_word_lists(articles)
     # write_articles(articles, 'articles.json')
 
-    articles = read_texts('articles_w_m.json')
-    merge_title_and_text(articles)
-    write_articles(articles, 'articles_w_m_t.json')
+    # articles = read_texts('articles_w_m.json')
+    # merge_title_and_text(articles)
+    # write_articles(articles, 'articles_w_m_t.json')
+
+    articles = read_texts('articles_w_m_t.json')
+    split_and_save(articles)
+    print()
