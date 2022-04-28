@@ -21,6 +21,8 @@ from clsassifier_iterator import classify_all
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
+from utils import form_y_prep, create_res_dir, form_label_map, parse_arguments, print_info, form_res_path
+
 np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 
 
@@ -110,57 +112,59 @@ def test(use_whole_text: bool, test_data_source: str, train_data_source: str):
           )
 
 
-def main(use_whole_text: bool, test_data_source: str, train_data_source: str, use_cross_validation: bool,
-         use_std_sclr: bool, use_short_classifiers_list: bool):
-    data = pd.read_json('articles_w_m_t.json')
-    y = np.asarray(data["user_categories"])
-    label_map = {cat: index for index, cat in enumerate(np.unique(y))}
-    y_prep = np.asarray([label_map[l] for l in y])
-    print(label_map)
+def classify_with_gpt(**params):
+    train_data_source = params['train_data_source']
+    test_data_source = params.get('test_data_source', train_data_source)
+    use_whole_text = params.get('use_whole_text', False)
+    use_short_classifiers_list = params.get('short', False)
+    use_std_sclr = params.get('use_std_sclr', False)
+    res_dir = params.get('res_dir')
+    save_err_matr = params.get('save_err_matr', True)
+    model = params.get('model', '')
     test_size = 0.2
+    print_info(**params, test_size=test_size)
+
+    data = pd.read_json('articles_w_m_t.json')
+    y_prep = form_y_prep(data["user_categories"])
     x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
                                                         stratify=y_prep)
     if use_whole_text:
-        model = GPTWholeTextWordEmbedding('sberbank-ai/rugpt3large_based_on_gpt2')
+        model = GPTWholeTextWordEmbedding(model_name=model)
         x_train = x_train[train_data_source]
         x_test = x_test[test_data_source]
         file_postfix = 'gpt_whole_text'
     else:
         x_train = x_train[train_data_source.rstrip('_w')]
         x_test = x_test[test_data_source.rstrip('_w')]
-        model = GPTWholeTextWordEmbedding('sberbank-ai/rugpt3large_based_on_gpt2')
-        file_postfix = 'gpt_sentens'
-    print(f'use_short_classifiers_list = {use_short_classifiers_list}')
-    print(f'use_whole_text = {use_whole_text}')
-    print(f'model_test_str = {test_data_source}')
-    print(f'test_size = {test_size}')
-    print(f'use_std_sclr = {use_std_sclr}')
+        model = GPTWholeTextWordEmbedding(model_name=model)
+        file_postfix = 'sentens'
     vectorizors = [model]
-    # vectorizors.append(MinMaxScaler())
-    # vectorizors.append(StandardScaler())
     if use_std_sclr:
         vectorizors.append(StandardScaler())
-    # vectorizors.append(PCA(0.95))
     if use_short_classifiers_list:
         classifiers = short_classifier_list(vectorizors)
-        file_postfix += '_short'
     else:
         classifiers = full_classifier_list(vectorizors)
-        file_postfix += '_full'
+    res_dir_path = form_res_path(res_dir, train_data_source, test_data_source)
+    res_dir = create_res_dir(f'{res_dir_path}/gpt_{file_postfix}')
+    print_info(**params, file=f'{res_dir_path}/gpt_{file_postfix}/info.txt', test_size=test_size)
+
     classify_all(x_train,
                  x_test,
                  y_train,
                  y_test,
-                 file_postfix=file_postfix,
-                 use_cross_validation=use_cross_validation,
-                 target_names=list(label_map.keys()),
+                 classifiers=classifiers,
+                 res_dir=res_dir,
+                 target_names=list(form_label_map(data["user_categories"]).keys()),
+                 save_err_matr=save_err_matr,
                  paint_err_matr=False,
-                 print_table=False,
-                 classifiers=classifiers)
+                 print_table=False)
 
 
 if __name__ == '__main__':
-    args = initialize_argument_parser().parse_args()
-    main(args.use_whole_text, args.test_data_source, args.train_data_source, args.use_cross_validation,
-         args.use_std_sclr, args.short)
+    # args = initialize_argument_parser().parse_args()
+    # classify_with_gpt(args.use_whole_text, args.test_data_source, args.train_data_source,
+    #      args.use_std_sclr, args.short)
+    args = parse_arguments()
+    classify_with_gpt(vars(args))
     # test(args.use_whole_text, args.test_data_source, args.train_data_source)

@@ -17,6 +17,7 @@ from bert_transformer_embedding import BertTransformerEmbedding, BertTransformer
 from classifier_lists import full_classifier_list, short_classifier_list
 from io_utils import initialize_argument_parser
 from clsassifier_iterator import classify_all
+from utils import form_y_prep, form_label_map, create_res_dir, print_info, form_res_path
 
 
 def test(use_whole_text: bool, test_data_source: str, train_data_source: str):
@@ -56,31 +57,35 @@ def test(use_whole_text: bool, test_data_source: str, train_data_source: str):
           )
 
 
-def main(use_whole_text: bool, test_data_source: str, train_data_source: str, use_cross_validation: bool,
-         use_std_sclr: bool, use_short_classifiers_list: bool):
-    data = pd.read_json('articles_w_m_t.json')
-    y = np.asarray(data["user_categories"])
-    label_map = {cat: index for index, cat in enumerate(np.unique(y))}
-    y_prep = np.asarray([label_map[l] for l in y])
-    print(label_map)
+def classify_with_bert(**params):
+    train_data_source = params['train_data_source']
+    test_data_source = params.get('test_data_source', train_data_source)
+    use_whole_text = params.get('use_whole_text', False)
+    use_short_classifiers_list = params.get('short', False)
+    use_std_sclr = params.get('use_std_sclr', False)
+    model = params.get('model', '')
+    res_dir = params.get('res_dir')
+    save_err_matr = params.get('save_err_matr', True)
     test_size = 0.2
-    x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
-                                                        stratify=y_prep)
+    print_info(**params, file=None, test_size=test_size)
+
+    data = pd.read_json('articles_w_m_t.json')
+    y_prep = form_y_prep(data["user_categories"])
+    x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42, stratify=y_prep)
     if use_whole_text:
-        model = BertTransformerEmbedding()
+        model = BertTransformerEmbedding(model_name=model)
         x_train = x_train[train_data_source]
         x_test = x_test[test_data_source]
-        file_postfix = 'bert_whole_text'
+        file_postfix = 'whole_text'
     else:
         x_train = x_train[train_data_source.rstrip('_w')]
         x_test = x_test[test_data_source.rstrip('_w')]
-        model = BertTransformerSentenceEmbedding()
-        file_postfix = 'bert_sentens'
-    print(f'use_short_classifiers_list = {use_short_classifiers_list}')
-    print(f'use_whole_text = {use_whole_text}')
-    print(f'model_test_str = {test_data_source}')
-    print(f'test_size = {test_size}')
-    print(f'use_std_sclr = {use_std_sclr}')
+        model = BertTransformerSentenceEmbedding(model_name=model)
+        file_postfix = 'sentences'
+
+    res_dir_path = form_res_path(res_dir, train_data_source, test_data_source)
+    res_dir = create_res_dir(f'{res_dir_path}/bert_{file_postfix}')
+    print_info(**params, file=f'{res_dir_path}/bert_{file_postfix}/info.txt', test_size=test_size)
     vectorizors = [model]
     if use_std_sclr:
         vectorizors.append(StandardScaler())
@@ -92,16 +97,16 @@ def main(use_whole_text: bool, test_data_source: str, train_data_source: str, us
                  x_test,
                  y_train,
                  y_test,
-                 file_postfix=file_postfix,
-                 use_cross_validation=use_cross_validation,
-                 target_names=list(label_map.keys()),
-                 paint_err_matr=False,
-                 print_table=False,
-                 classifiers=classifiers)
+                 classifiers=classifiers,
+                 res_dir=res_dir,
+                 target_names=list(form_label_map(data["user_categories"]).keys()),
+                 save_err_matr=save_err_matr,
+                 print_table=False)
 
 
 if __name__ == '__main__':
     args = initialize_argument_parser().parse_args()
-    # main(args.use_whole_text, args.test_data_source, args.train_data_source, args.use_cross_validation,
+    # classify_with_bert(args.use_whole_text, args.test_data_source, args.train_data_source,
     #      args.use_std_sclr, args.short)
-    test(args.use_whole_text, args.test_data_source, args.train_data_source)
+    classify_with_bert(vars(args))
+    # test(args.use_whole_text, args.test_data_source, args.train_data_source)

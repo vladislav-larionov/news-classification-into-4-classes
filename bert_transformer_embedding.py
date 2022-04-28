@@ -32,7 +32,7 @@ class BertTransformerSentenceEmbedding(TransformerMixin, BaseEstimator):
         for text in X:
             res_txt = []
             for sent in text:
-                t = self.tokenizer(' '.join(sent), padding=True, truncation=True, max_length=510,
+                t = self.tokenizer(' '.join(sent), padding=True, truncation=True, max_length=512,
                                    add_special_tokens=True, return_tensors='pt')
                 with torch.no_grad():
                     model_output = self.model(**{k: v.to(self.model.device) for k, v in t.items()})

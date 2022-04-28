@@ -7,6 +7,10 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
+from warnings import simplefilter
+from sklearn.exceptions import ConvergenceWarning
+simplefilter("ignore", category=ConvergenceWarning)
+
 
 def full_classifier_list(vectorizors):
     return [
@@ -46,7 +50,6 @@ def full_classifier_list(vectorizors):
          f'SVM kernel=poly degree=6 coef0=0.75'),
         (make_pipeline(*vectorizors, SVC(class_weight='balanced',kernel='poly', degree=6, coef0=0.7)),
          f'SVM kernel=poly degree=6 coef0=0.7'),
-        (make_pipeline(*vectorizors, DecisionTreeClassifier()), 'DecisionTree'),
         (make_pipeline(*vectorizors, LogisticRegression(class_weight='balanced',max_iter=1000)),
          'LogisticRegression'),
         (make_pipeline(*vectorizors, LogisticRegression(class_weight='balanced',penalty="none", max_iter=1000)),
@@ -54,8 +57,6 @@ def full_classifier_list(vectorizors):
         (make_pipeline(*vectorizors, KNeighborsClassifier()), 'KNeighbors'),
         (make_pipeline(*vectorizors, KNeighborsClassifier(weights='distance')),
          'KNeighbors weights=distance'),
-        (make_pipeline(*vectorizors, AdaBoostClassifier(n_estimators=70)),
-         f'AdaBoost n_estimators={70}'),
         (make_pipeline(*vectorizors, ExtraTreesClassifier(class_weight='balanced', n_estimators=500)),
          f'ExtraTreesClassifier class_weight=balanced n_estimators=500'),
         (make_pipeline(*vectorizors,
@@ -96,17 +97,25 @@ def full_classifier_list(vectorizors):
 
 def short_classifier_list(vectorizors):
     return [
-        (make_pipeline(*vectorizors, SVC(class_weight='balanced',gamma=1, C=10)),
+        (make_pipeline(*vectorizors, SVC(class_weight='balanced', gamma=1, C=10)),
+         f'SVM class_weight=balanced kernel=rbf gamma=1 C=10'),
+        (make_pipeline(*vectorizors, SVC(class_weight='balanced', kernel='poly', degree=4, coef0=0.7, gamma=1, C=0.1)),
+         f'SVM class_weight=balanced kernel=poly degree=4 coef0=0.7 gamma=1 C=0.1'),
+        (make_pipeline(*vectorizors, SVC(class_weight='balanced', kernel='poly', degree=5, coef0=0.75)),
+         f'SVM class_weight=balanced kernel=poly degree=5 coef0=0.75'),
+        (make_pipeline(*vectorizors, SVC(class_weight='balanced', kernel='poly', degree=5, coef0=0.75, C=10)),
+         f'SVM class_weight=balanced kernel=poly degree=5 coef0=0.75, C=10'),
+        (make_pipeline(*vectorizors, SVC(gamma=1, C=10)),
          f'SVM kernel=rbf gamma=1 C=10'),
-        (make_pipeline(*vectorizors, SVC(class_weight='balanced',kernel='poly', degree=4, coef0=0.7, gamma=1, C=0.1)),
+        (make_pipeline(*vectorizors, SVC(kernel='poly', degree=4, coef0=0.7, gamma=1, C=0.1)),
          f'SVM kernel=poly degree=4 coef0=0.7 gamma=1 C=0.1'),
-        (make_pipeline(*vectorizors, SVC(class_weight='balanced',kernel='poly', degree=5, coef0=0.75)),
+        (make_pipeline(*vectorizors, SVC(kernel='poly', degree=5, coef0=0.75)),
          f'SVM kernel=poly degree=5 coef0=0.75'),
-        (make_pipeline(*vectorizors, SVC(class_weight='balanced',kernel='poly', degree=5, coef0=0.75, C=10)),
+        (make_pipeline(*vectorizors, SVC(kernel='poly', degree=5, coef0=0.75, C=10)),
          f'SVM kernel=poly degree=5 coef0=0.75, C=10'),
-        (make_pipeline(*vectorizors, SVC(class_weight='balanced',kernel='poly', degree=4, coef0=0.75)),
+        (make_pipeline(*vectorizors, SVC(kernel='poly', degree=4, coef0=0.75)),
          f'SVM kernel=poly degree=4 coef0=0.75'),
-        (make_pipeline(*vectorizors, LogisticRegression(class_weight='balanced',penalty="none", max_iter=1000)),
+        (make_pipeline(*vectorizors, LogisticRegression(penalty="none", max_iter=1000)),
          'LogisticRegression penalty=none'),
         (make_pipeline(*vectorizors, KNeighborsClassifier(weights='distance')),
          'KNeighbors weights=distance')

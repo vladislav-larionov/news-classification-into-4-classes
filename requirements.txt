@@ -6,7 +6,7 @@ pandas
 seaborn
 nltk
 matplotlib
-numpy
+numpy==1.22.3
 transformers
 sentencepiece
 more_itertools

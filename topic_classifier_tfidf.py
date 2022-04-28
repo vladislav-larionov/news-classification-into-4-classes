@@ -1,10 +1,7 @@
 import collections
 
 import numpy as np
-from matplotlib import pyplot as plt
-from nltk.corpus import stopwords
-from sklearn import metrics
-from sklearn.datasets import load_iris
+from utils import form_y_prep, form_label_map, create_res_dir, parse_arguments, print_info, form_res_path
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer, TfidfTransformer, CountVectorizer
@@ -16,14 +13,11 @@ from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, classification_report
-from sklearn.model_selection import train_test_split, cross_val_score, KFold, cross_validate, StratifiedKFold, \
-    GroupKFold, ShuffleSplit, StratifiedShuffleSplit, LeaveOneOut, LeavePOut, GridSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV
 import pandas as pd
-from sklearn.tree import DecisionTreeClassifier
 
-from classifier_lists import full_classifier_list
+from classifier_lists import full_classifier_list, short_classifier_list
 from clsassifier_iterator import classify_all
-from io_utils import initialize_argument_parser
 
 
 def vectorizors(use_std_sclr: bool = False):
@@ -33,109 +27,54 @@ def vectorizors(use_std_sclr: bool = False):
     return vectrs
 
 
-def main(test_data_source: str, train_data_source: str, use_cross_validation: bool, use_std_sclr: bool):
+def classify_with_tf(**params):
     # http://nadbordrozd.github.io/blog/2016/05/20/text-classification-with-word2vec/
-    # data = pd.read_json('articles.json')
-    data = pd.read_json('articles_w_m_t.json')
-    y = np.asarray(data["user_categories"])
-    print(collections.Counter(data["user_categories"]))
-    label_map = {cat: index for index, cat in enumerate(np.unique(y))}
-    y_prep = np.asarray([label_map[l] for l in y])
-    print(label_map)
+    train_data_source = params['train_data_source']
+    test_data_source = params.get('test_data_source', train_data_source)
+    use_std_sclr = params.get('use_std_sclr', False)
+    res_dir = params.get('res_dir')
+    use_pca = params.get('use_pca', False)
+    save_err_matr = params.get('save_err_matr', True)
+    use_short_classifiers_list = params.get('short', False)
     test_size = 0.2
+    n_components = 500
     tfidf_params = dict(min_df=10, max_df=0.8, ngram_range=(1, 2))
+    print_info(**params, test_size=test_size, n_components=n_components,
+               model_info=tfidf_params)
+
+    data = pd.read_json('articles_w_m_t.json')
+    y_prep = form_y_prep(data["user_categories"])
     vectorizors = [TfidfVectorizer(**tfidf_params)]
     if use_std_sclr:
         vectorizors.append(StandardScaler(with_mean=False))
-    vectorizors.append(TruncatedSVD(n_components=500))
-    classifiers = full_classifier_list(vectorizors)
-    # tfidfconverter = TfidfVectorizer(**tfidf_params)
+    if use_pca:
+        vectorizors.append(TruncatedSVD(n_components=n_components))
+    if use_short_classifiers_list:
+        classifiers = short_classifier_list(vectorizors)
+    else:
+        classifiers = full_classifier_list(vectorizors)
     x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
                                                         stratify=y_prep)
     # x_train = tfidfconverter.fit_transform([' '.join(t) for t in x_train[train_data_source]]).toarray()
     # x_test = tfidfconverter.transform([' '.join(t) for t in x_test[test_data_source]]).toarray()
     x_train = [' '.join(t) for t in x_train[train_data_source]]
     x_test = [' '.join(t) for t in x_test[test_data_source]]
-    print(f'model_test_str = {test_data_source}')
-    print(f'test_size = {test_size}')
-    print(f'tfidf_params = {tfidf_params}')
-    print(f'use_std_sclr = {use_std_sclr}')
-    # classifiers = []
-    # classifiers.extend([
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC()), f'SVM kernel=rbf'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='linear')), f'SVM linear'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly')), f'SVM kernel=poly'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', coef0=0.75)), f'SVM kernel=poly coef0=0.75'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=5)), f'SVM kernel=poly degree=5'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(degree=5, coef0=0.75, C=10)),
-    #      f'SVM kernel=rbf, degree=5, coef0=0.75, C=10'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(degree=5, coef0=0.2)), f'SVM kernel=rbf, degree=5, coef0=0.2'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(gamma=1)), f'SVM kernel=rbf, gamma=1'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(gamma=1, C=10)), f'SVM kernel=rbf, gamma=1, C=10'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=4, coef0=0.75)),
-    #      f'SVM kernel=poly, degree=4, coef0=0.75'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=4, coef0=0.7, gamma=1, C=0.1)),
-    #      f'SVM kernel=poly, degree=4, coef0=0.7, gamma=1, C=0.1'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=5, coef0=0.65)),
-    #      f'SVM kernel=poly, degree=5, coef0=0.65'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=5, coef0=0.75)),
-    #      f'SVM kernel=poly degree=5 coef0=0.75'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=6)), f'SVM kernel=poly degree=6'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), SVC(kernel='poly', degree=6, coef0=0.75)),
-    #      f'SVM kernel=poly degree=6 coef0=0.75'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), DecisionTreeClassifier()), 'DecisionTree'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), LogisticRegression(max_iter=1000)), 'LogisticRegression'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), LogisticRegression(penalty="none", max_iter=1000)),
-    #      'LogisticRegression penalty=none'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), KNeighborsClassifier()), 'KNeighbors'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), KNeighborsClassifier(weights='distance')),
-    #      'KNeighbors weights=distance'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), NearestCentroid()), 'NearestCentroid'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), NearestCentroid(metric='cosine')), 'NearestCentroid metric=cosine'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), AdaBoostClassifier(n_estimators=70)), f'AdaBoost n_estimators={70}'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), MinMaxScaler(), MultinomialNB()), f'MultinomialNB MinMaxScaler'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), MultinomialNB()), f'MultinomialNB'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), GaussianNB()), f'GaussianNB'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier()), f'RandomForest'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(bootstrap=False)),
-    #      f'RandomForest bootstrap=False'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(max_features=None)),
-    #      f'RandomForest max_features=None'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(criterion='entropy')),
-    #      f'RandomForest entropy'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(criterion='entropy', max_features=None)),
-    #      f'RandomForest entropy max_features=None'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(criterion='entropy', max_features='log2')),
-    #      f'RandomForest entropy max_features=log2'),
-    #     (make_pipeline(*vectorizors(use_std_sclr), RandomForestClassifier(criterion='entropy', bootstrap=False)),
-    #      f'RandomForest entropy bootstrap=False'),
-    #     (make_pipeline(*vectorizors(use_std_sclr),
-    #                    RandomForestClassifier(criterion='entropy', max_features=None, bootstrap=False)),
-    #      f'RandomForest entropy max_features=None bootstrap=False'),
-    #     (make_pipeline(*vectorizors(use_std_sclr),
-    #                    RandomForestClassifier(criterion='entropy', max_features='log2', bootstrap=False)),
-    #      f'RandomForest entropy max_features=log2 bootstrap=False'),
-    #     (make_pipeline(*vectorizors(use_std_sclr),
-    #                    RandomForestClassifier(n_estimators=150, criterion='entropy', bootstrap=False)),
-    #      f'RandomForest n_estimators=150 entropy bootstrap=False'),
-    #     (make_pipeline(*vectorizors(use_std_sclr),
-    #                    RandomForestClassifier(n_estimators=200, criterion='entropy', bootstrap=False)),
-    #      f'RandomForest n_estimators=200 entropy bootstrap=False'),
-    #     (make_pipeline(*vectorizors(use_std_sclr),
-    #                    RandomForestClassifier(n_estimators=500, criterion='entropy', bootstrap=False,
-    #                                           max_features='log2')),
-    #      f'RandomForest n_estimators=500, criterion=entropy, bootstrap=False, max_features=log2')
-    # ])
+
+    res_dir_path = form_res_path(res_dir, train_data_source, test_data_source)
+    res_dir = create_res_dir(res_dir_path)
+    print_info(**params, file=f'{res_dir_path}/info.txt', test_size=test_size, n_components=n_components,
+               model_info=tfidf_params)
+
     classify_all(x_train,
                  x_test,
                  y_train,
                  y_test,
-                 file_postfix='tfidf',
-                 use_cross_validation=use_cross_validation,
-                 target_names=list(label_map.keys()),
+                 classifiers=classifiers,
+                 res_dir=res_dir,
+                 target_names=list(form_label_map(data["user_categories"]).keys()),
+                 save_err_matr=save_err_matr,
                  paint_err_matr=False,
-                 print_table=False,
-                 classifiers=classifiers)
+                 print_table=False)
 
 
 def test(test_data_source: str, train_data_source: str):
@@ -199,7 +138,9 @@ def grid_search(use_whole_text: bool, test_data_source: str, train_data_source: 
 
 
 if __name__ == '__main__':
-    args = initialize_argument_parser().parse_args()
-    main(args.test_data_source, args.train_data_source, args.use_cross_validation, args.use_std_sclr)
+    # args = initialize_argument_parser().parse_args()
+    # classify_with_tf(args.test_data_source, args.train_data_source, args.use_cross_validation, args.use_std_sclr)
+    args = parse_arguments()
+    classify_with_tf(vars(args))
     # test(args.test_data_source, args.train_data_source)
     # grid_search(args.use_whole_text, args.test_data_source, args.train_data_source)

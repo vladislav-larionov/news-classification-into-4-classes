@@ -1,3 +1,4 @@
+import string
 from os import mkdir, rmdir
 
 import gc
@@ -184,6 +185,134 @@ def split_and_save(articles):
             test.to_csv(file, index=False, sep='\t')
     print()
 
+
+def save_full(articles):
+    # mkdir(f'data/full')
+    # with open(f'data/full/full.tsv', 'w', encoding='utf-8') as file:
+    #     writer = csv.writer(file, delimiter='\t')
+    #     writer.writerow(['phrase', 'label'])
+    #     for art in articles:
+    #         writer.writerow([art['full_text'].replace("\n", " ").replace("\t", " "), art['user_categories']])
+    # data = pd.read_csv(f'data/full/full.tsv', sep='\t')
+    # y = np.asarray(data['label'])
+    # label_map = {cat: index for index, cat in enumerate(np.unique(y))}
+    # y_prep = np.asarray([label_map[l] for l in y])
+    # x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=0.2, random_state=42,
+    #                                                     stratify=y_prep)
+    # with open(f'data/full/train.tsv', 'w', encoding='utf-8') as file:
+    #     train = pd.DataFrame(data={"phrase": x_train['phrase'], "label": x_train['label']})
+    #     train.to_csv(file, index=False, sep='\t')
+    # with open(f'data/full/test.tsv', 'w', encoding='utf-8') as file:
+    #     test = pd.DataFrame(data={"phrase": x_test['phrase'], "label": x_test['label']})
+    #     test.to_csv(file, index=False, sep='\t')
+    # print()
+    #
+    # mkdir(f'data/title_full')
+    # with open(f'data/title_full/title_full.tsv', 'w', encoding='utf-8') as file:
+    #     writer = csv.writer(file, delimiter='\t')
+    #     writer.writerow(['phrase', 'label'])
+    #     for art in articles:
+    #         writer.writerow([art['title'] + '. ' + art['full_text'].replace("\n", " ").replace("\t", " "), art['user_categories']])
+    # data = pd.read_csv(f'data/title_full/title_full.tsv', sep='\t')
+    # y = np.asarray(data['label'])
+    # label_map = {cat: index for index, cat in enumerate(np.unique(y))}
+    # y_prep = np.asarray([label_map[l] for l in y])
+    # x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=0.2, random_state=42,
+    #                                                     stratify=y_prep)
+    #
+    # with open(f'data/title_full/train.tsv', 'w', encoding='utf-8') as file:
+    #     train = pd.DataFrame(data={"phrase": x_train['phrase'], "label": x_train['label']})
+    #     train.to_csv(file, index=False, sep='\t')
+    # with open(f'data/title_full/test.tsv', 'w', encoding='utf-8') as file:
+    #     test = pd.DataFrame(data={"phrase": x_test['phrase'], "label": x_test['label']})
+    #     test.to_csv(file, index=False, sep='\t')
+    # print()
+
+
+    mkdir(f'data/mentions')
+    parts_with_title = []
+    with open(f'data/mentions/mentions.tsv', 'w', encoding='utf-8') as file:
+        writer = csv.writer(file, delimiter='\t')
+        writer.writerow(['phrase', 'label'])
+        for art in articles:
+            pars = get_paragraph_with_mention(art['full_text'])
+            pars = [par.replace("\n", " ").replace("\t", " ") for par in pars]
+            parts_with_title.append([' '.join([art['title'] + '.'] + pars), art['user_categories']])
+            writer.writerow([' '.join(pars), art['user_categories']])
+    data = pd.read_csv(f'data/mentions/mentions.tsv', sep='\t')
+    y = np.asarray(data['label'])
+    label_map = {cat: index for index, cat in enumerate(np.unique(y))}
+    y_prep = np.asarray([label_map[l] for l in y])
+    x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=0.2, random_state=42,
+                                                        stratify=y_prep)
+    with open(f'data/mentions/train.tsv', 'w', encoding='utf-8') as file:
+        train = pd.DataFrame(data={"phrase": x_train['phrase'], "label": x_train['label']})
+        train.to_csv(file, index=False, sep='\t')
+    with open(f'data/mentions/test.tsv', 'w', encoding='utf-8') as file:
+        test = pd.DataFrame(data={"phrase": x_test['phrase'], "label": x_test['label']})
+        test.to_csv(file, index=False, sep='\t')
+    print()
+
+    mkdir(f'data/title_mentions')
+    with open(f'data/title_mentions/title_mentions.tsv', 'w', encoding='utf-8') as file:
+        writer = csv.writer(file, delimiter='\t')
+        writer.writerow(['phrase', 'label'])
+        writer.writerows(parts_with_title)
+    data = pd.read_csv(f'data/title_mentions/title_mentions.tsv', sep='\t')
+    x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=0.2, random_state=42,
+                                                        stratify=y_prep)
+    with open(f'data/title_mentions/train.tsv', 'w', encoding='utf-8') as file:
+        train = pd.DataFrame(data={"phrase": x_train['phrase'], "label": x_train['label']})
+        train.to_csv(file, index=False, sep='\t')
+    with open(f'data/title_mentions/test.tsv', 'w', encoding='utf-8') as file:
+        test = pd.DataFrame(data={"phrase": x_test['phrase'], "label": x_test['label']})
+        test.to_csv(file, index=False, sep='\t')
+    print()
+
+
+def split_text_by_head_and_tail(path, head_count):
+    res_path = f'{path}/head_and_tail_{head_count}_{512-head_count}'
+    mkdir(res_path)
+    for source in ['test.tsv', 'train.tsv']:
+        data = pd.read_csv(f'{path}/{source}', sep='\t', header=0)
+        phrases = []
+        labels = []
+        for phrase, label in zip(data['phrase'], data['label']):
+            splitted = phrase.split(' ')
+            total = len(splitted)
+            if total < 512:
+                phrases.append(phrase)
+                labels.append(label)
+                continue
+            begin = []
+            begin_size = 0
+            while begin_size < head_count and begin_size < total:
+                begin.append(splitted[begin_size])
+                begin_size += 1
+            while begin_size < total and not splitted[begin_size].endswith(('!', '.', '?')):
+                begin.append(splitted[begin_size])
+                begin_size += 1
+            if begin_size < total:
+                begin.append(splitted[begin_size])
+                begin_size += 1
+            rest_count = 512 - begin_size
+            if rest_count > 0:
+                end = splitted[-rest_count:]
+            else:
+                end = []
+            end_shift = 0
+            end_size = len(end)
+            while end_shift < end_size and not end[end_shift].endswith(('!', '.', '?')):
+                end_shift += 1
+            end_shift += 1
+            end = end[end_shift:]
+            phrases.append(' '.join(begin + end))
+            labels.append(label)
+        with open(f'{res_path}/{source}', 'w', encoding='utf-8') as file:
+            res = pd.DataFrame(data={"phrase": phrases, "label": labels})
+            res.to_csv(file, index=False, sep='\t')
+
+
 if __name__ == "__main__":
     # articles = get_articles()
     # tokenize(articles)
@@ -194,6 +323,9 @@ if __name__ == "__main__":
     # merge_title_and_text(articles)
     # write_articles(articles, 'articles_w_m_t.json')
 
-    articles = read_texts('articles_w_m_t.json')
-    split_and_save(articles)
-    print()
+    # articles = read_texts('articles_w_m_t.json')
+    # save_full(articles)
+    # print()
+    for source in ['data/title_mentions', 'data/full', 'data/mentions', 'data/title_full']:
+        split_text_by_head_and_tail(source, 128)
+        split_text_by_head_and_tail(source, 256)

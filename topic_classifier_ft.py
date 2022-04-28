@@ -20,10 +20,11 @@ import csv
 import seaborn as sns
 from sklearn.tree import DecisionTreeClassifier
 
-from classifier_lists import full_classifier_list
+from classifier_lists import full_classifier_list, short_classifier_list
 from clsassifier_iterator import classify_all
 from io_utils import initialize_argument_parser
 from mean_embedding_vectorizer import MeanEmbeddingVectorizer
+from utils import form_y_prep, form_label_map, create_res_dir, parse_arguments, form_res_path, print_info
 
 
 def create_model(x_train: list, use_whole_text: bool, train_data_source: str):
@@ -51,40 +52,56 @@ def create_model(x_train: list, use_whole_text: bool, train_data_source: str):
     return model
 
 
-def main(use_whole_text: bool, test_data_source: str, train_data_source: str, use_cross_validation: bool,
-         use_std_sclr: bool):
+def classify_with_ft(**params):
     # http://nadbordrozd.github.io/blog/2016/05/20/text-classification-with-word2vec/
     # data = pd.read_json('articles.json')
-    data = pd.read_json('articles_w_m_t.json')
-    y = np.asarray(data["user_categories"])
-    print(collections.Counter(data["user_categories"]))
-    label_map = {cat: index for index, cat in enumerate(np.unique(y))}
-    y_prep = np.asarray([label_map[l] for l in y])
-    print(label_map)
+    train_data_source = params['train_data_source']
+    test_data_source = params.get('test_data_source', train_data_source)
+    use_whole_text = params.get('use_whole_text', False)
+    use_short_classifiers_list = params.get('short', False)
+    use_std_sclr = params.get('use_std_sclr', False)
+    res_dir = params.get('res_dir')
+    use_pca = params.get('use_pca', False)
+    save_err_matr = params.get('save_err_matr', True)
     test_size = 0.2
+    n_components = 50
+    print_info(**params, test_size=test_size, n_components=n_components)
+
+    data = pd.read_json('articles_w_m_t.json')
+    y_prep = form_y_prep(data["user_categories"])
     x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
                                                         stratify=y_prep)
     model = create_model(x_train, use_whole_text, train_data_source)
     x_train = x_train[train_data_source]
     x_test = x_test[test_data_source]
-    print(f'model_test_str = {test_data_source}')
-    print(f'test_size = {test_size}')
-    print(f'use_std_sclr = {use_std_sclr}')
     vectorizors = [MeanEmbeddingVectorizer(model)]
     if use_std_sclr:
         vectorizors.append(StandardScaler())
-    # vectorizors.append(PCA(n_components=50))
-    classifiers = full_classifier_list(vectorizors)
+    if use_pca:
+        vectorizors.append(PCA(n_components=n_components))
+    if use_short_classifiers_list:
+        classifiers = short_classifier_list(vectorizors)
+    else:
+        classifiers = full_classifier_list(vectorizors)
+    if use_whole_text:
+        file_postfix = 'whole_text'
+    else:
+        file_postfix = 'sentences'
+
+    res_dir_path = form_res_path(res_dir, train_data_source, test_data_source)
+    res_dir = create_res_dir(f'{res_dir_path}/ft_{file_postfix}')
+    print_info(**params, file=f'{res_dir_path}/ft_{file_postfix}/info.txt', test_size=test_size, n_components=n_components)
+
     classify_all(x_train,
                  x_test,
                  y_train,
                  y_test,
-                 file_postfix='fasttext',
-                 use_cross_validation=use_cross_validation,
-                 target_names=list(label_map.keys()),
+                 classifiers=classifiers,
+                 res_dir=res_dir,
+                 target_names=list(form_label_map(data["user_categories"]).keys()),
+                 save_err_matr=save_err_matr,
                  paint_err_matr=False,
-                 print_table=False,
-                 classifiers=classifiers)
+                 print_table=False)
 
 
 def test(use_whole_text: bool, test_data_source: str, train_data_source: str):
@@ -185,8 +202,10 @@ def grid_search(use_whole_text: bool, test_data_source: str, train_data_source: 
 
 
 if __name__ == '__main__':
-    args = initialize_argument_parser().parse_args()
-    main(args.use_whole_text, args.test_data_source, args.train_data_source, args.use_cross_validation,
-         args.use_std_sclr)
+    # args = initialize_argument_parser().parse_args()
+    # classify_with_ft(args.use_whole_text, args.test_data_source, args.train_data_source,
+    #      args.use_std_sclr)
+    args = parse_arguments()
+    classify_with_ft(vars(args))
     # grid_search(args.use_whole_text, args.test_data_source, args.train_data_source)
     # test(args.use_whole_text, args.test_data_source, args.train_data_source)
