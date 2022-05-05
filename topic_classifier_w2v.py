@@ -71,7 +71,7 @@ def classify_with_w2v(**params):
     use_pca = params.get('use_pca', False)
     save_err_matr = params.get('save_err_matr', True)
     test_size = 0.2
-    n_components = 30
+    n_components = 55
     print_info(**params, file=None, test_size=test_size, n_components=n_components,
                model_info=dict(vector_size=70, window=8, sg=1, epochs=15))
     data = pd.read_json('articles_w_m_t.json')

@@ -49,6 +49,8 @@ def parse_arguments():
     parser.add_argument("--use_pca", nargs='?', const=True, default=False)
     parser.add_argument("--short", nargs='?', const=True, default=False)
     parser.add_argument("--save_err_matr", nargs='?', const=True, default=False)
+    parser.add_argument("--train_data_source", default='full_text')
+    parser.add_argument("--model", default=None)
     parser.add_argument("--res_dir", default="result")
     return parser.parse_args()
 

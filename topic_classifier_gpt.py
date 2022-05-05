@@ -61,7 +61,7 @@ class GPTSentenceEmbedding(GPTWholeTextWordEmbedding):
             for sent in text:
                 with torch.no_grad():
                     text_index = self.tokenizer.encode(' '.join(sent), truncation=True,
-                                                       add_prefix_space=True, max_length=510, return_tensors='pt')
+                                                       add_prefix_space=True, max_length=512, return_tensors='pt')
                     vector = self.model.transformer.wte.weight[text_index, :]
                     res_txt.append(vector.numpy()[0])
             res.append(np.mean(np.concatenate(np.array(res_txt)), axis=0))
@@ -132,12 +132,12 @@ def classify_with_gpt(**params):
         model = GPTWholeTextWordEmbedding(model_name=model)
         x_train = x_train[train_data_source]
         x_test = x_test[test_data_source]
-        file_postfix = 'gpt_whole_text'
+        file_postfix = 'whole_text'
     else:
         x_train = x_train[train_data_source.rstrip('_w')]
         x_test = x_test[test_data_source.rstrip('_w')]
-        model = GPTWholeTextWordEmbedding(model_name=model)
-        file_postfix = 'sentens'
+        model = GPTSentenceEmbedding(model_name=model)
+        file_postfix = 'sentences'
     vectorizors = [model]
     if use_std_sclr:
         vectorizors.append(StandardScaler())

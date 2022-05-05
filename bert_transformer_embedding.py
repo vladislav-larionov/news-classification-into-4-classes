@@ -36,8 +36,8 @@ class BertTransformerSentenceEmbedding(TransformerMixin, BaseEstimator):
                                    add_special_tokens=True, return_tensors='pt')
                 with torch.no_grad():
                     model_output = self.model(**{k: v.to(self.model.device) for k, v in t.items()})
-                embeddings = model_output.last_hidden_state[:, 0, :]
-                embeddings = torch.nn.functional.normalize(embeddings)
+                    embeddings = model_output.last_hidden_state[:, 0, :]
+                # embeddings = torch.nn.functional.normalize(embeddings)
                 res_txt.append(embeddings)
             res.append(np.mean(np.concatenate(res_txt), axis=0))
         return np.array(res)

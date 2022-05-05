@@ -14,10 +14,10 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
 from bert_transformer_embedding import BertTransformerEmbedding, BertTransformerSentenceEmbedding
-from classifier_lists import full_classifier_list, short_classifier_list
+from classifier_lists import full_classifier_list, short_classifier_list, bert_short_classifier_list
 from io_utils import initialize_argument_parser
 from clsassifier_iterator import classify_all
-from utils import form_y_prep, form_label_map, create_res_dir, print_info, form_res_path
+from utils import form_y_prep, form_label_map, create_res_dir, print_info, form_res_path, parse_arguments
 
 
 def test(use_whole_text: bool, test_data_source: str, train_data_source: str):
@@ -89,10 +89,11 @@ def classify_with_bert(**params):
     vectorizors = [model]
     if use_std_sclr:
         vectorizors.append(StandardScaler())
-    if use_short_classifiers_list:
-        classifiers = short_classifier_list(vectorizors)
-    else:
-        classifiers = full_classifier_list(vectorizors)
+    # if use_short_classifiers_list:
+    #     classifiers = short_classifier_list(vectorizors)
+    # else:
+    #     classifiers = full_classifier_list(vectorizors)
+    classifiers = bert_short_classifier_list(vectorizors)
     classify_all(x_train,
                  x_test,
                  y_train,
@@ -105,8 +106,9 @@ def classify_with_bert(**params):
 
 
 if __name__ == '__main__':
-    args = initialize_argument_parser().parse_args()
+    args = parse_arguments()
+    # --test_data_source lemmed_title_text_w --train_data_source lemmed_title_text_w --short
     # classify_with_bert(args.use_whole_text, args.test_data_source, args.train_data_source,
     #      args.use_std_sclr, args.short)
-    classify_with_bert(vars(args))
+    classify_with_bert(**vars(args))
     # test(args.use_whole_text, args.test_data_source, args.train_data_source)

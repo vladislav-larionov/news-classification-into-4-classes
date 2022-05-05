@@ -35,7 +35,7 @@ def classify_all(x_train, x_test, y_train, y_test, classifiers, res_dir: Path, t
                     dict_res = classification_report(y_test, y_res, target_names=target_names, digits=4,
                                                      output_dict=True)
                     if not print_table:
-                        print(f'{classifier_info[1] + ";":{" "}{"<"}{80}} '
+                        print(f'{classifier_info[1] + ";":{" "}{"<"}{83}} '
                               f'P_micro: {precision_score(y_test, y_res, average="micro"):1.4f};'
                               f' P_macro: {precision_score(y_test, y_res, average="macro"):1.4f};'
                               f' R_micro: {recall_score(y_test, y_res, average="micro"):1.4f};'
