@@ -44,10 +44,6 @@ def create_w2v_model(x_train: list, use_whole_text: bool, train_data_source: str
     window = 8
     sg = 1
     epochs = 15
-    print(f'vector_size = {vector_size}')
-    print(f'window = {window}')
-    print(f'epochs = {epochs}')
-    print(f'sg = {sg}')
     if use_whole_text:
         model = Word2Vec(x_train[train_data_source], vector_size=vector_size, window=window, sg=sg, epochs=epochs,
                          workers=4)
@@ -197,7 +193,7 @@ if __name__ == '__main__':
     # args = initialize_argument_parser().parse_args()
     args = parse_arguments()
     # classify_with_w2v(args.use_whole_text, args.test_data_source, args.train_data_source, args.use_std_sclr)
-    classify_with_w2v(vars(args))
+    classify_with_w2v(**vars(args))
     # grid_search(args.use_whole_text, args.test_data_source, args.train_data_source)
     # test(args.use_whole_text, args.test_data_source, args.train_data_source)
     # test2(args.use_whole_text, args.test_data_source, args.train_data_source)

@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 from sklearn import metrics
 from sklearn.metrics import f1_score, precision_score, recall_score, classification_report
+from utils import dump_model, load_model_from_file
 
 
 def classify_all(x_train, x_test, y_train, y_test, classifiers, res_dir: Path, target_names=None,
@@ -30,6 +31,8 @@ def classify_all(x_train, x_test, y_train, y_test, classifiers, res_dir: Path, t
             csv_writer_all.writerow(headers_avg + headers_classes[1:])
             for classifier_info in classifiers:
                 classifier_info[0].fit(x_train, y_train)
+                # dump_model(classifier_info[0], f'{res_dir}/model_{classifier_info[1]}.sav')
+                # classifier_info = (load_model_from_file(f'{res_dir}/model_{classifier_info[1]}.sav'), classifier_info[1])
                 y_res = classifier_info[0].predict(x_test)
                 if target_names:
                     dict_res = classification_report(y_test, y_res, target_names=target_names, digits=4,

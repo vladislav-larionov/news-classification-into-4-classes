@@ -1,23 +1,16 @@
-import collections
-
 import numpy as np
-from utils import form_y_prep, form_label_map, create_res_dir, parse_arguments, print_info, form_res_path
-from sklearn.decomposition import PCA, TruncatedSVD
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
-from sklearn.feature_extraction.text import TfidfVectorizer, TfidfTransformer, CountVectorizer
-from sklearn.linear_model import LogisticRegression, SGDClassifier
-from sklearn.naive_bayes import MultinomialNB, GaussianNB
-from sklearn.neighbors import KNeighborsClassifier, NearestCentroid
-from sklearn.neural_network import MLPClassifier
-from sklearn.pipeline import make_pipeline, Pipeline
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.svm import SVC
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, classification_report
-from sklearn.model_selection import train_test_split, GridSearchCV
 import pandas as pd
-
+from sklearn.decomposition import TruncatedSVD
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
 from classifier_lists import full_classifier_list, short_classifier_list
 from clsassifier_iterator import classify_all
+from utils import form_y_prep, form_label_map, create_res_dir, parse_arguments, print_info, form_res_path
 
 
 def vectorizors(use_std_sclr: bool = False):
@@ -44,7 +37,16 @@ def classify_with_tf(**params):
 
     data = pd.read_json('articles_w_m_t.json')
     y_prep = form_y_prep(data["user_categories"])
-    vectorizors = [TfidfVectorizer(**tfidf_params)]
+    x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
+                                                        stratify=y_prep)
+    # x_train = tfidfconverter.fit_transform([' '.join(t) for t in x_train[train_data_source]]).toarray()
+    # x_test = tfidfconverter.transform([' '.join(t) for t in x_test[test_data_source]]).toarray()
+    x_train = [' '.join(t) for t in x_train[train_data_source]]
+    x_test = [' '.join(t) for t in x_test[test_data_source]]
+
+    vectorizer = TfidfVectorizer(**tfidf_params)
+    vectorizer.fit(x_train)
+    vectorizors = [vectorizer]
     if use_std_sclr:
         vectorizors.append(StandardScaler(with_mean=False))
     if use_pca:
@@ -53,12 +55,6 @@ def classify_with_tf(**params):
         classifiers = short_classifier_list(vectorizors)
     else:
         classifiers = full_classifier_list(vectorizors)
-    x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
-                                                        stratify=y_prep)
-    # x_train = tfidfconverter.fit_transform([' '.join(t) for t in x_train[train_data_source]]).toarray()
-    # x_test = tfidfconverter.transform([' '.join(t) for t in x_test[test_data_source]]).toarray()
-    x_train = [' '.join(t) for t in x_train[train_data_source]]
-    x_test = [' '.join(t) for t in x_test[test_data_source]]
 
     res_dir_path = form_res_path(res_dir, train_data_source, test_data_source)
     res_dir = create_res_dir(res_dir_path)
@@ -141,6 +137,6 @@ if __name__ == '__main__':
     # args = initialize_argument_parser().parse_args()
     # classify_with_tf(args.test_data_source, args.train_data_source, args.use_cross_validation, args.use_std_sclr)
     args = parse_arguments()
-    classify_with_tf(vars(args))
+    classify_with_tf(**vars(args))
     # test(args.test_data_source, args.train_data_source)
     # grid_search(args.use_whole_text, args.test_data_source, args.train_data_source)

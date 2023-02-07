@@ -1,3 +1,4 @@
+import pickle
 import sys
 
 import argparse
@@ -97,3 +98,11 @@ def form_res_path(res_dir, train_data_source, test_data_source):
     if train_data_source == test_data_source:
         return f'{res_dir}/{train_data_source}'
     return f'{res_dir}/{train_data_source}__{test_data_source}'
+
+
+def dump_model(model, filename):
+    pickle.dump(model, open(filename, 'wb'))
+
+
+def load_model_from_file(filename):
+    return pickle.load(open(filename, 'rb'))

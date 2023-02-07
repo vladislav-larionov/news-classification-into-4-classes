@@ -24,5 +24,5 @@ pip3 install -r requirements.txt
 
 launch:
 ```
-python3 topic_classifier.py --test_data_source mention_lemmed_title_text_no_stopwords_w --learning_data_source mention_lemmed_title_text_no_stopwords_w --use_whole_text
+python3 topic_classifier.py ---train_data_source lemmed_title_text_w
 ```

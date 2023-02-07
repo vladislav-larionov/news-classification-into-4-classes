@@ -206,6 +206,6 @@ if __name__ == '__main__':
     # classify_with_ft(args.use_whole_text, args.test_data_source, args.train_data_source,
     #      args.use_std_sclr)
     args = parse_arguments()
-    classify_with_ft(vars(args))
+    classify_with_ft(**vars(args))
     # grid_search(args.use_whole_text, args.test_data_source, args.train_data_source)
     # test(args.use_whole_text, args.test_data_source, args.train_data_source)

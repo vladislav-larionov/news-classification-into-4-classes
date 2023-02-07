@@ -80,38 +80,6 @@ class GPTWholeTextEmbedding(GPTWholeTextWordEmbedding):
         return np.array(res)
 
 
-def test(use_whole_text: bool, test_data_source: str, train_data_source: str):
-    data = pd.read_json('articles_w_m_t.json')
-    y = np.asarray(data["user_categories"])
-    label_map = {cat: index for index, cat in enumerate(np.unique(y))}
-    y_prep = np.asarray([label_map[l] for l in y])
-    test_size = 0.2
-    x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
-                                                        stratify=y_prep)
-    if use_whole_text:
-        x_train = x_train[train_data_source]
-        x_test = x_test[test_data_source]
-        embeder = GPTWholeTextWordEmbedding('sberbank-ai/rugpt3large_based_on_gpt2')
-    else:
-        x_train = x_train[train_data_source.rstrip('_w')]
-        x_test = x_test[test_data_source.rstrip('_w')]
-        embeder = GPTWholeTextWordEmbedding('sberbank-ai/rugpt3large_based_on_gpt2')
-    classifier = make_pipeline(embeder,
-                               # PCA(n_components=30),
-                               SVC(kernel='poly', degree=5, coef0=0.7)
-                               )
-    classifier.fit(x_train, y_train)
-    y_res = classifier.predict(x_test)
-    print(f'{"SVC(kernel=poly, degree=5, coef0=7);":{" "}{"<"}{57}} '
-          f'P_micro: {precision_score(y_test, y_res, average="micro"):1.4f};'
-          f' P_macro: {precision_score(y_test, y_res, average="macro"):1.4f};'
-          f' R_micro: {recall_score(y_test, y_res, average="micro"):1.4f};'
-          f' R_macro: {recall_score(y_test, y_res, average="macro"):1.4f};'
-          f' F1_micro: {f1_score(y_test, y_res, average="micro"):1.4f};'
-          f' F1_macro: {f1_score(y_test, y_res, average="macro"):1.4f};'
-          )
-
-
 def classify_with_gpt(**params):
     train_data_source = params['train_data_source']
     test_data_source = params.get('test_data_source', train_data_source)
@@ -120,7 +88,7 @@ def classify_with_gpt(**params):
     use_std_sclr = params.get('use_std_sclr', False)
     res_dir = params.get('res_dir')
     save_err_matr = params.get('save_err_matr', True)
-    model = params.get('model', '')
+    model = params.get('model')
     test_size = 0.2
     print_info(**params, test_size=test_size)
 
@@ -129,7 +97,7 @@ def classify_with_gpt(**params):
     x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
                                                         stratify=y_prep)
     if use_whole_text:
-        model = GPTWholeTextWordEmbedding(model_name=model)
+        model = GPTWholeTextEmbedding(model_name=model)
         x_train = x_train[train_data_source]
         x_test = x_test[test_data_source]
         file_postfix = 'whole_text'
@@ -166,5 +134,5 @@ if __name__ == '__main__':
     # classify_with_gpt(args.use_whole_text, args.test_data_source, args.train_data_source,
     #      args.use_std_sclr, args.short)
     args = parse_arguments()
-    classify_with_gpt(vars(args))
+    classify_with_gpt(**vars(args))
     # test(args.use_whole_text, args.test_data_source, args.train_data_source)
