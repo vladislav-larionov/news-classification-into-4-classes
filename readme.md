@@ -1,7 +1,11 @@
 
 # Preparation of the environment
 
-All the commands in the following sections should be executed only after appropriate initialization of the application environment. The instructions below are related mostly to Linux. On Windows modify the commands accordingly. The name of the interpreter can be `python` or `python3` depending on the system.
+All the commands in the following sections should be executed only after appropriate initialization of the application environment. 
+The instructions below are related mostly to Linux. On Windows modify the commands accordingly. 
+The name of the interpreter can be `python` or `python3` depending on the system.
+
+To start development, you need to download Python 3.7
 
 Create a new virtual environment if it doesn't exist:
 ```

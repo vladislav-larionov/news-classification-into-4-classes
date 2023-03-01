@@ -133,6 +133,8 @@ def grid_search(use_whole_text: bool, test_data_source: str, train_data_source: 
     print()
 
 
+
+# run python topic_classifier_tfidf.py --train_data_source lemmed_title_text_w
 if __name__ == '__main__':
     # args = initialize_argument_parser().parse_args()
     # classify_with_tf(args.test_data_source, args.train_data_source, args.use_cross_validation, args.use_std_sclr)
