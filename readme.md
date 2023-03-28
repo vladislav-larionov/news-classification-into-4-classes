@@ -26,7 +26,12 @@ Install requirements (first time or after modification of `requirements.txt`):
 pip3 install -r requirements.txt
 ```
 
+Download and unzip to the root project directory the [dataset1](https://disk.yandex.ru/d/7M8lDZT3qvZMmA) 
+and the [dataset2](https://disk.yandex.ru/d/IecvoZfHgRMpsQ).
+
 launch:
 ```
-python3 topic_classifier.py ---train_data_source lemmed_title_text_w
+python3 topic_classifier_*.py ---train_data_source lemmed_title_text_w
 ```
+
+`*` is an embedding from the list: bert, ft, gpt, tfidf, w2v.
