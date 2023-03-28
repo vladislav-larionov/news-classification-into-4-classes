@@ -12,6 +12,7 @@ from utils import dump_model, load_model_from_file
 def classify_all(x_train, x_test, y_train, y_test, classifiers, res_dir: Path, target_names=None,
                  paint_err_matr=False,
                  print_table=False,
+                 save_model=False,
                  save_err_matr=False
                  ):
     csvfile_all = open(f'{res_dir}/res_all.csv', 'w')
@@ -31,8 +32,9 @@ def classify_all(x_train, x_test, y_train, y_test, classifiers, res_dir: Path, t
             csv_writer_all.writerow(headers_avg + headers_classes[1:])
             for classifier_info in classifiers:
                 classifier_info[0].fit(x_train, y_train)
-                dump_model(classifier_info[0], f'{res_dir}/model_{classifier_info[1]}.sav')
-                classifier_info = (load_model_from_file(f'{res_dir}/model_{classifier_info[1]}.sav'), classifier_info[1])
+                if save_model:
+                    dump_model(classifier_info[0], f'{res_dir}/model_{classifier_info[1]}.sav')
+                    # classifier_info = (load_model_from_file(f'{res_dir}/model_{classifier_info[1]}.sav'), classifier_info[1])
                 y_res = classifier_info[0].predict(x_test)
                 if target_names:
                     dict_res = classification_report(y_test, y_res, target_names=target_names, digits=4,

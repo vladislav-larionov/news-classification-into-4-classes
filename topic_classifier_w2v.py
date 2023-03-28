@@ -104,53 +104,8 @@ def classify_with_w2v(**params):
                  target_names=list(form_label_map(data["user_categories"]).keys()),
                  save_err_matr=save_err_matr,
                  paint_err_matr=False,
+                 save_model=False,
                  print_table=False)
-
-
-def test(use_whole_text: bool, test_data_source: str, train_data_source: str):
-    data = pd.read_json('articles_w_m_t.json')
-    y = np.asarray(data["user_categories"])
-    label_map = {cat: index for index, cat in enumerate(np.unique(y))}
-    y_prep = np.asarray([label_map[l] for l in y])
-    test_size = 0.2
-    x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
-                                                        stratify=y_prep)
-    model = create_w2v_model(x_train, use_whole_text, train_data_source)
-    # clsassifier = make_pipeline(MeanEmbeddingVectorizer(model), PCA(n_components=50), LinearSVC())
-    clsassifier = make_pipeline(MeanEmbeddingVectorizer(model),
-                                ExtraTreesClassifier(class_weight='balanced', n_estimators=500))
-    clsassifier.fit(x_train[train_data_source], y_train)
-    y_res = clsassifier.predict(x_test[test_data_source])
-    print(f'{"ExtraTreesClassifier;":{" "}{"<"}{57}} '
-          f'P_micro: {precision_score(y_test, y_res, average="micro"):1.4f};'
-          f' P_macro: {precision_score(y_test, y_res, average="macro"):1.4f};'
-          f' R_micro: {recall_score(y_test, y_res, average="micro"):1.4f};'
-          f' R_macro: {recall_score(y_test, y_res, average="macro"):1.4f};'
-          f' F1_micro: {f1_score(y_test, y_res, average="micro"):1.4f};'
-          f' F1_macro: {f1_score(y_test, y_res, average="macro"):1.4f};'
-          )
-
-
-def test2(use_whole_text: bool, test_data_source: str, train_data_source: str):
-    data = pd.read_json('articles_w_m_t.json')
-    y = np.asarray(data["user_categories"])
-    label_map = {cat: index for index, cat in enumerate(np.unique(y))}
-    y_prep = np.asarray([label_map[l] for l in y])
-    test_size = 0.2
-    x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
-                                                        stratify=y_prep)
-    # model = create_w2v_model(x_train, use_whole_text, train_data_source)
-    classifier = make_pipeline(Doc2VecModel(), SVC(kernel='poly', degree=5, coef0=0.75))
-    classifier.fit(x_train[train_data_source], y_train)
-    y_res = classifier.predict(x_test[test_data_source])
-    print(f'{"SVC(kernel=poly, degree=5, coef0=0.75);":{" "}{"<"}{57}} '
-          f'P_micro: {precision_score(y_test, y_res, average="micro"):1.4f};'
-          f' P_macro: {precision_score(y_test, y_res, average="macro"):1.4f};'
-          f' R_micro: {recall_score(y_test, y_res, average="micro"):1.4f};'
-          f' R_macro: {recall_score(y_test, y_res, average="macro"):1.4f};'
-          f' F1_micro: {f1_score(y_test, y_res, average="micro"):1.4f};'
-          f' F1_macro: {f1_score(y_test, y_res, average="macro"):1.4f};'
-          )
 
 
 def grid_search(use_whole_text: bool, test_data_source: str, train_data_source: str):

@@ -70,33 +70,8 @@ def classify_with_tf(**params):
                  target_names=list(form_label_map(data["user_categories"]).keys()),
                  save_err_matr=save_err_matr,
                  paint_err_matr=False,
+                 save_model=False,
                  print_table=False)
-
-
-def test(test_data_source: str, train_data_source: str):
-    data = pd.read_json('articles_w_m_t.json')
-    y = np.asarray(data["user_categories"])
-    label_map = {cat: index for index, cat in enumerate(np.unique(y))}
-    y_prep = np.asarray([label_map[l] for l in y])
-    test_size = 0.2
-    x_train, x_test, y_train, y_test = train_test_split(data, y_prep, test_size=test_size, random_state=42,
-                                                        stratify=y_prep)
-    tfidfconverter = TfidfVectorizer(min_df=5, max_df=0.7)
-    X_train = tfidfconverter.fit_transform([' '.join(t) for t in x_train[train_data_source]]).toarray()
-    # clsassifier = RandomForestClassifier(bootstrap=False, criterion='entropy', n_estimators=100)
-    clsassifier = AdaBoostClassifier(n_estimators=50, learning_rate=1, base_estimator=SVC(kernel='linear', probability=True))
-    clsassifier.fit(X_train, y_train)
-    X_test = tfidfconverter.transform([' '.join(t) for t in x_test[test_data_source]]).toarray()
-    y_res = clsassifier.predict(X_test)
-    # print(classification_report(y_test, y_res, target_names=list(label_map.keys()), digits=4))
-    print(f'{"SVC TfidfVectorizer;":{" "}{"<"}{57}} '
-          f'P_micro: {precision_score(y_test, y_res, average="micro"):1.4f};'
-          f' P_macro: {precision_score(y_test, y_res, average="macro"):1.4f};'
-          f' R_micro: {recall_score(y_test, y_res, average="micro"):1.4f};'
-          f' R_macro: {recall_score(y_test, y_res, average="macro"):1.4f};'
-          f' F1_micro: {f1_score(y_test, y_res, average="micro"):1.4f};'
-          f' F1_macro: {f1_score(y_test, y_res, average="macro"):1.4f};'
-          )
 
 
 def grid_search(use_whole_text: bool, test_data_source: str, train_data_source: str):
